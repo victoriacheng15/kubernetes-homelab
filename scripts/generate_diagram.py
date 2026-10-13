@@ -7,30 +7,28 @@
 from diagrams import Diagram, Cluster, Edge
 from diagrams.onprem.compute import Server
 from diagrams.onprem.network import Internet
+from diagrams.onprem.vcs import Git
 from diagrams.k8s.controlplane import API, Kubelet
+from diagrams.k8s.compute import Pod
 from diagrams.k8s.storage import PV
 from diagrams.onprem.monitoring import Prometheus, Grafana
 from diagrams.onprem.gitops import Argocd
 
 graph_attr = {
     "fontsize": "20",
-    "fontname": "Noto Sans",
-    "bgcolor": "#ffffff",
     "pad": "0.5",
-    "splines": "ortho",
+    "splines": "polyline",
     "nodesep": "1.0",
-    "ranksep": "1.2",
+    "ranksep": "1.5",
 }
 
 node_attr = {
-    "fontname": "Noto Sans",
     "fontsize": "12",
     "labelloc": "b",
     "imagepos": "tc",
 }
 
 edge_attr = {
-    "fontname": "Noto Sans",
     "fontsize": "12",
     "color": "#718096",
 }
@@ -59,44 +57,98 @@ with Diagram(
 ):
     lan = Internet("Home LAN")
 
-    with Cluster("Physical Box 1: pve-01", graph_attr=box_attr) as box1:
+    with Cluster("Physical Box 1: pve-01", graph_attr=box_attr):
         with Cluster("k8s-cp-01 (Control Plane)", graph_attr=inner_box_attr):
             cp_api = API("k3s API Server")
             cp_storage = PV("Embedded etcd")
-            cilium_cp = Server("Cilium CNI\n(eBPF)")
+            cilium_cp = Server("Cilium CNI")
             cp_api - cp_storage
-            cp_api - cilium_cp
 
         with Cluster("k8s-telemetry-01 (Telemetry Node)", graph_attr=inner_box_attr):
             argocd = Argocd("ArgoCD")
             otel = Server("OTel Collector")
             prom = Prometheus("Prometheus")
             grafana = Grafana("Grafana")
-            hubble = Server("Hubble Relay\n& UI (Cilium)")
+            hubble = Server("Cillium Hubble")
 
-            otel >> Edge(color="#4a5568") >> prom
-            prom >> Edge(color="#4a5568") >> grafana
-            otel >> Edge(color="#4a5568") >> grafana
-            hubble >> Edge(color="#4a5568") >> grafana
+            otel >> prom
+            prom >> grafana
 
-    with Cluster("Physical Box 2: pve-02", graph_attr=box_attr) as box2:
+    with Cluster("Physical Box 2: pve-02", graph_attr=box_attr):
         with Cluster("k8s-app-01 (App Node)", graph_attr=inner_box_attr):
-            go_app = Server("Go OTel App")
+            podinfo = Pod("Podinfo")
             chaos = Server("Chaos Mesh")
             juice = Server("OWASP Juice Shop")
             falco = Server("Falco")
-            cilium_app = Server("Cilium CNI\n(eBPF)")
+            cilium_app = Server("Cilium CNI")
 
-            go_app >> Edge(label="OTLP", color="#3182ce") >> otel
-            chaos >> Edge(label="Chaos", style="dashed", color="#e53e3e") >> go_app
-            juice - Edge(color="#718096") - falco
-            cilium_app >> Edge(label="eBPF flows", color="#38a169") >> hubble
+            # chaos >> Edge(style="dashed", color="#e53e3e") >> podinfo
+            # chaos >> Edge(style="dashed", color="#e53e3e") >> juice
+            falco - juice
 
-    with Cluster("Physical Box 3: rpi-01", graph_attr=box_attr) as box3:
+    with Cluster("Physical Box 3: rpi-01", graph_attr=box_attr):
         with Cluster("rpi-01", graph_attr=inner_box_attr):
             rpi = Server("pi")
 
     # Home LAN network connections directly to the physical box wrappers
-    lan >> Edge(color="#4a5568", lhead=box1.dot.name) >> cp_api
-    lan >> Edge(color="#4a5568", lhead=box2.dot.name) >> go_app
-    lan >> Edge(color="#4a5568", lhead=box3.dot.name) >> rpi
+    lan >> Edge(color="#3182ce") >> cp_api
+    lan >> Edge(color="#3182ce") >> podinfo
+    lan >> Edge(color="#3182ce") >> rpi
+
+graph_attr_gitops = {
+    **graph_attr,
+    "splines": "polyline",
+    "nodesep": "1.0",
+    "ranksep": "1.5",
+}
+
+with Diagram(
+    "GitOps Flow",
+    show=False,
+    direction="LR",
+    graph_attr=graph_attr_gitops,
+    node_attr=node_attr,
+    edge_attr=edge_attr,
+    filename="docs/assets/gitops-flow",
+    outformat="png",
+):
+    git = Git("Git Repository")
+    argocd = Argocd("ArgoCD")
+
+    with Cluster("Applications", graph_attr=box_attr):
+        podinfo = Pod("Podinfo")
+        juice = Server("OWASP Juice Shop")
+
+    with Cluster("Security & Chaos", graph_attr=box_attr):
+        chaos = Server("Chaos Mesh")
+        falco = Server("Falco")
+
+    with Cluster("Observability", graph_attr=box_attr):
+        prom = Prometheus("Prometheus")
+        otel = Server("OTel Collector")
+
+    with Cluster("Dashboards", graph_attr=box_attr):
+        grafana = Grafana("Grafana")
+
+    # GitOps deployment flow
+    git >> Edge(color="#d97706") >> argocd
+    argocd >> Edge(color="#3182ce") >> podinfo
+    argocd >> Edge(color="#3182ce") >> juice
+    argocd >> Edge(color="#3182ce") >> prom
+    argocd >> Edge(color="#3182ce") >> grafana
+    argocd >> Edge(color="#3182ce") >> chaos
+    argocd >> Edge(color="#3182ce") >> falco
+
+    # Chaos failure injection & Security monitoring
+    chaos >> Edge(style="dashed", color="#e53e3e") >> podinfo
+    chaos >> Edge(style="dashed", color="#e53e3e") >> juice
+    falco - Edge(color="#718096") - juice
+    falco >> Edge(color="#38a169") >> prom
+
+    # Applications telemetry stream to Observability
+    podinfo >> Edge(color="#38a169") >> prom
+    podinfo >> Edge(color="#3182ce") >> otel
+    juice >> Edge(color="#38a169") >> prom
+
+    # Observability metrics query into Dashboards
+    prom >> Edge(color="#4a5568") >> grafana
