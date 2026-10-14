@@ -1,0 +1,46 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  filter:
+    name: Filter Changes
+    runs-on: ubuntu-latest
+    outputs:
+      markdown: ${{ steps.changes.outputs.markdown }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Detect file changes
+        uses: dorny/paths-filter@v4
+        id: changes
+        with:
+          filters: |
+            markdown:
+              - '**/*.md'
+              - '.markdownlint*'
+
+  lint-md:
+    name: Lint Markdown
+    needs: filter
+    if: ${{ needs.filter.outputs.markdown == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+
+      - name: Run markdown lint
+        run: make lint-md
