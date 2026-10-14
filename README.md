@@ -8,12 +8,13 @@
 
 ---
 
-A bare-metal Kubernetes homelab operating across two physical Proxmox VE hosts and a Raspberry Pi quorum tiebreaker. Built to practice production cluster operations, zero-trust network policies, kernel runtime observability, and declarative GitOps pipelines.
+An architectural evolution from the single-node [observability-hub](https://github.com/victoriacheng15/observability-hub), this bare-metal Kubernetes homelab expands across two physical Proxmox VE hosts and a Raspberry Pi quorum tiebreaker. Built to practice production cluster operations, zero-trust network policies, kernel runtime observability, and declarative GitOps pipelines across distributed physical hardware.
 
 ## Why This Exists
 
-Built to understand and operate a production-grade Kubernetes cluster on real physical constraints rather than disposable cloud environments:
+Built to expand beyond single-machine experiments and disposable cloud setups, evolving the foundations of [observability-hub](https://github.com/victoriacheng15/observability-hub) across distributed physical infrastructure:
 
+* **From Single-Node to Distributed Topology:** Scales the single-machine GitOps and Cilium foundations into a multi-node bare-metal environment, confronting real node failure domains and quorum management.
 * **Control Plane Isolation:** Centralized control plane with strict `NoSchedule` taints to preserve API stability.
 * **Kernel Datapath & In-Cluster Routing:** Cilium eBPF in isolated VXLAN overlay mode, avoiding host routing table modifications or physical LAN disruption.
 * **Zero-Drift GitOps:** ArgoCD as the authoritative reconciler for all cluster services, observability daemons, and security tools.
