@@ -13,6 +13,7 @@ from diagrams.k8s.compute import Pod
 from diagrams.k8s.storage import PV
 from diagrams.onprem.monitoring import Prometheus, Grafana
 from diagrams.onprem.gitops import Argocd
+from diagrams.onprem.container import LXC
 
 graph_attr = {
     "fontsize": "20",
@@ -58,42 +59,64 @@ with Diagram(
     lan = Internet("Home LAN")
 
     with Cluster("Physical Box 1: pve-01", graph_attr=box_attr):
+        pve01 = Server("pve-01")
+
         with Cluster("k8s-cp-01 (Control Plane)", graph_attr=inner_box_attr):
             cp_api = API("k3s API Server")
             cp_storage = PV("Embedded etcd")
-            cilium_cp = Server("Cilium CNI")
+            cilium_cp = Pod("Cilium CNI")
             cp_api - cp_storage
 
         with Cluster("k8s-telemetry-01 (Telemetry Node)", graph_attr=inner_box_attr):
             argocd = Argocd("ArgoCD")
-            otel = Server("OTel Collector")
+            otel = Pod("OTel Collector")
             prom = Prometheus("Prometheus")
             grafana = Grafana("Grafana")
-            hubble = Server("Cillium Hubble")
+            hubble = Pod("Cilium Hubble")
 
             otel >> prom
             prom >> grafana
 
+        with Cluster("LXC", graph_attr=inner_box_attr):
+            tailscale = LXC("Tailscale (CT 301)")
+            nginx = LXC("Nginx (CT 302)")
+
     with Cluster("Physical Box 2: pve-02", graph_attr=box_attr):
+        pve02 = Server("pve-02")
+
         with Cluster("k8s-app-01 (App Node)", graph_attr=inner_box_attr):
             podinfo = Pod("Podinfo")
-            chaos = Server("Chaos Mesh")
-            juice = Server("OWASP Juice Shop")
-            falco = Server("Falco")
-            cilium_app = Server("Cilium CNI")
+            chaos = Pod("Chaos Mesh")
+            juice = Pod("OWASP Juice Shop")
+            falco = Pod("Falco")
+            cilium_app = Pod("Cilium CNI")
 
-            # chaos >> Edge(style="dashed", color="#e53e3e") >> podinfo
-            # chaos >> Edge(style="dashed", color="#e53e3e") >> juice
+            chaos - podinfo
             falco - juice
 
-    with Cluster("Physical Box 3: rpi-01", graph_attr=box_attr):
-        with Cluster("rpi-01", graph_attr=inner_box_attr):
-            rpi = Server("pi")
+        with Cluster("LXC", graph_attr=inner_box_attr):
+            pihole = LXC("Pi-hole (CT 300)")
 
-    # Home LAN network connections directly to the physical box wrappers
-    lan >> Edge(color="#3182ce") >> cp_api
-    lan >> Edge(color="#3182ce") >> podinfo
-    lan >> Edge(color="#3182ce") >> rpi
+    with Cluster("Physical Box 3: rpi-01", graph_attr=box_attr):
+        rpi01 = Server("rpi-01")
+
+        with Cluster("Infrastructure Services", graph_attr=inner_box_attr):
+            qdevice = Server("Corosync QDevice")
+            ntp = Server("Chrony NTP (UTC)")
+
+    # Home LAN network connections directly to the physical hosts & network services
+    lan >> Edge(color="#3182ce") >> pve01
+    lan >> Edge(color="#3182ce") >> pve02
+    lan >> Edge(color="#3182ce") >> rpi01
+
+    # Host-to-guest hierarchy (forces physical hosts to sit cleanly above inner services)
+    pve01 >> Edge(style="invis") >> cp_api
+    pve02 >> Edge(style="invis") >> podinfo
+    rpi01 >> Edge(style="invis") >> qdevice
+
+    # Time synchronization
+    ntp >> Edge(color="#805ad5", style="dashed", penwidth="2.0") >> pve01
+    ntp >> Edge(color="#805ad5", style="dashed", penwidth="2.0") >> pve02
 
 graph_attr_gitops = {
     **graph_attr,
@@ -117,15 +140,15 @@ with Diagram(
 
     with Cluster("Applications", graph_attr=box_attr):
         podinfo = Pod("Podinfo")
-        juice = Server("OWASP Juice Shop")
+        juice = Pod("OWASP Juice Shop")
 
     with Cluster("Security & Chaos", graph_attr=box_attr):
-        chaos = Server("Chaos Mesh")
-        falco = Server("Falco")
+        chaos = Pod("Chaos Mesh")
+        falco = Pod("Falco")
 
     with Cluster("Observability", graph_attr=box_attr):
         prom = Prometheus("Prometheus")
-        otel = Server("OTel Collector")
+        otel = Pod("OTel Collector")
 
     with Cluster("Dashboards", graph_attr=box_attr):
         grafana = Grafana("Grafana")
