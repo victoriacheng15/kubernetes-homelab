@@ -8,9 +8,7 @@
 
 ## Visualization & Dashboards (Grafana)
 
-## Kernel Runtime Observability (Cilium Hubble)
-
-## Zero-Trust Network Policies (Cilium)
+## Network Policies & Traffic Flows (Cilium & Hubble)
 
 ## Admission Control & Policies (Kyverno)
 
