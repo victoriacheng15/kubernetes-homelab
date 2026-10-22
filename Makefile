@@ -9,6 +9,20 @@ help: ## Display this help message
 	@awk 'BEGIN {FS = ":.*##"; printf "\n\033[1mKubernetes Homelab Management\033[0m\n\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1;34m%s\033[0m\n", substr($$0, 5) }' $(MAKEFILE_LIST)
 
 # ------------------------------------------------------------------------------
+# Documentation
+# ------------------------------------------------------------------------------
+
+##@ Documentation
+
+.PHONY: docs-serve docs-build
+
+docs-serve: ## Launch live MkDocs preview using Podman (http://localhost:8000)
+	podman run --rm -it -p 8000:8000 -v .:/docs:Z squidfunk/mkdocs-material
+
+docs-build: ## Build static MkDocs documentation site using Podman
+	podman run --rm -v .:/docs:Z squidfunk/mkdocs-material build
+
+# ------------------------------------------------------------------------------
 # Markdown Tooling
 # ------------------------------------------------------------------------------
 

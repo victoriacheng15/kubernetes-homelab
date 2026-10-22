@@ -1,0 +1,91 @@
+/* Force horizontal navigation tabs to remain visible on smaller screens */
+.md-tabs {
+  display: block !important;
+}
+
+.md-tabs__list {
+  display: flex !important;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Hide the duplicate sidebar navigation drawer on screens where tabs are active */
+@media screen and (max-width: 76.1875em) {
+  .md-nav--primary .md-nav__title[for="__drawer"] {
+    display: none;
+  }
+}
+
+/* Top Header Bar (Dark Grey across both Dark and Light modes) */
+.md-header {
+  background-color: #1e2124 !important;
+  border-bottom: 1px solid #2e3338 !important;
+}
+
+/* Tabs Bar (Dark Grey across both Dark and Light modes) */
+.md-tabs {
+  background-color: #282b30 !important;
+  border-bottom: 1px solid #36393e !important;
+}
+
+/* Inactive Tab Text */
+.md-tabs__link {
+  color: #b9bbbe !important;
+  opacity: 0.85 !important;
+}
+
+.md-tabs__link:hover {
+  color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+/* Active Tab Highlight (Deep Orange across both modes) */
+.md-tabs__link--active {
+  color: #ff7043 !important;
+  opacity: 1 !important;
+  border-bottom: 2px solid #ff7043 !important;
+}
+
+/* Header Text, Search Icon, and Repo Badges contrast */
+.md-header__title,
+.md-header__button,
+.md-header__topic {
+  color: #ffffff !important;
+}
+
+/* High-Contrast Dark Text for Light Mode (Standard Font Weights) */
+[data-md-color-scheme="default"] {
+  --md-default-fg-color: #1a202c !important;
+  --md-default-fg-color--light: #2d3748 !important;
+  --md-default-fg-color--lighter: #4a5568 !important;
+  --md-typeset-color: #1a202c !important;
+}
+
+[data-md-color-scheme="default"] .md-typeset h1,
+[data-md-color-scheme="default"] .md-typeset h2,
+[data-md-color-scheme="default"] .md-typeset h3,
+[data-md-color-scheme="default"] .md-typeset h4 {
+  color: #0f172a !important;
+}
+
+[data-md-color-scheme="default"] .md-typeset p,
+[data-md-color-scheme="default"] .md-typeset li {
+  color: #1e293b !important;
+}
+
+[data-md-color-scheme="default"] .md-nav__link {
+  color: #334155 !important;
+}
+
+[data-md-color-scheme="default"] .md-nav__link--active {
+  color: #ea580c !important;
+}
+
+/* Hide the Hamburger (Navigation Drawer) Button completely */
+.md-header__button[for="__drawer"],
+label[for="__drawer"],
+.md-nav--primary .md-nav__title[for="__drawer"] {
+  display: none !important;
+  visibility: hidden !important;
+}
