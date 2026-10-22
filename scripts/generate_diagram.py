@@ -8,7 +8,7 @@ from diagrams import Diagram, Cluster, Edge
 from diagrams.onprem.compute import Server
 from diagrams.onprem.network import Internet
 from diagrams.onprem.vcs import Git
-from diagrams.k8s.controlplane import API, Kubelet
+from diagrams.k8s.controlplane import API
 from diagrams.k8s.compute import Pod
 from diagrams.k8s.storage import PV
 from diagrams.onprem.monitoring import Prometheus, Grafana
@@ -16,151 +16,188 @@ from diagrams.onprem.gitops import Argocd
 from diagrams.onprem.container import LXC
 
 graph_attr = {
-    "fontsize": "20",
-    "pad": "0.5",
-    "splines": "polyline",
-    "nodesep": "1.0",
-    "ranksep": "1.5",
+    "fontsize": "28",
+    "fontname": "Helvetica Neue, Helvetica, Arial, sans-serif",
+    "pad": "0.6",
+    "splines": "ortho",
+    "nodesep": "0.8",
+    "ranksep": "1.0",
+    "bgcolor": "#f8fafc",
+    "fontcolor": "#0f172a",
 }
 
 node_attr = {
-    "fontsize": "12",
+    "fontsize": "18",
+    "fontname": "Helvetica Neue, Helvetica, Arial, sans-serif",
     "labelloc": "b",
     "imagepos": "tc",
+    "fontcolor": "#0f172a",
 }
 
 edge_attr = {
-    "fontsize": "12",
-    "color": "#718096",
+    "fontsize": "14",
+    "fontname": "Helvetica Neue, Helvetica, Arial, sans-serif",
+    "color": "#64748b",
 }
 
-box_attr = {
-    "bgcolor": "#f7fafc",
-    "pencolor": "#4a5568",
-    "margin": "18",
-}
-
-inner_box_attr = {
+lan_box_attr = {
     "bgcolor": "#edf2f7",
-    "pencolor": "#cbd5e0",
-    "margin": "20",
+    "pencolor": "#64748b",
+    "penwidth": "2.0",
+    "fontcolor": "#0f172a",
+    "fontsize": "22",
+    "fontname": "Helvetica Neue, Helvetica, Arial, sans-serif",
+    "margin": "30",
+}
+
+host_box_attr = {
+    "bgcolor": "#f1f5f9",
+    "pencolor": "#64748b",
+    "penwidth": "2.0",
+    "fontcolor": "#0f172a",
+    "fontsize": "19",
+    "fontname": "Helvetica Neue, Helvetica, Arial, sans-serif",
+    "margin": "30",
+}
+
+vm_box_attr = {
+    "bgcolor": "#e2e8f0",
+    "pencolor": "#94a3b8",
+    "penwidth": "2.0",
+    "fontcolor": "#0f172a",
+    "fontsize": "16",
+    "fontname": "Helvetica Neue, Helvetica, Arial, sans-serif",
+    "margin": "30",
 }
 
 with Diagram(
     "Kubernetes Homelab Architecture",
     show=False,
     direction="TB",
+    curvestyle="ortho",
     graph_attr=graph_attr,
     node_attr=node_attr,
     edge_attr=edge_attr,
     filename="docs/assets/architecture",
     outformat="png",
 ):
-    lan = Internet("Home LAN")
+    with Cluster("Home LAN", graph_attr=lan_box_attr):
+        with Cluster("Physical Host: pve-01 (Mini PC)", graph_attr=host_box_attr):
+            pve01 = Server("pve-01")
 
-    with Cluster("Physical Box 1: pve-01", graph_attr=box_attr):
-        pve01 = Server("pve-01")
+            with Cluster("k8s-cp-01 (Control Plane)", graph_attr=vm_box_attr):
+                cp_api = API("k3s API Server")
+                cp_storage = PV("Embedded etcd")
+                cilium_cp = Pod("Cilium CNI")
+                cp_api - cp_storage
 
-        with Cluster("k8s-cp-01 (Control Plane)", graph_attr=inner_box_attr):
-            cp_api = API("k3s API Server")
-            cp_storage = PV("Embedded etcd")
-            cilium_cp = Pod("Cilium CNI")
-            cp_api - cp_storage
+            with Cluster("k8s-telemetry-01 (Telemetry Node)", graph_attr=vm_box_attr):
+                argocd = Argocd("ArgoCD")
+                otel = Pod("OTel Collector")
+                prom = Prometheus("Prometheus")
+                grafana = Grafana("Grafana")
+                hubble = Pod("Cilium Hubble")
 
-        with Cluster("k8s-telemetry-01 (Telemetry Node)", graph_attr=inner_box_attr):
-            argocd = Argocd("ArgoCD")
-            otel = Pod("OTel Collector")
-            prom = Prometheus("Prometheus")
-            grafana = Grafana("Grafana")
-            hubble = Pod("Cilium Hubble")
+                otel >> prom
+                prom >> grafana
 
-            otel >> prom
-            prom >> grafana
+            with Cluster("LXC Utilities", graph_attr=vm_box_attr):
+                tailscale = LXC("Tailscale")
+                nginx = LXC("Nginx")
 
-        with Cluster("LXC", graph_attr=inner_box_attr):
-            tailscale = LXC("Tailscale (CT 301)")
-            nginx = LXC("Nginx (CT 302)")
+        with Cluster("Physical Host: pve-02 (Laptop)", graph_attr=host_box_attr):
+            pve02 = Server("pve-02")
 
-    with Cluster("Physical Box 2: pve-02", graph_attr=box_attr):
-        pve02 = Server("pve-02")
+            with Cluster("k8s-app-01 (App Node)", graph_attr=vm_box_attr):
+                chaos = Pod("Chaos Mesh")
+                podinfo = Pod("Podinfo")
+                juice = Pod("OWASP Juice Shop")
+                falco = Pod("Falco")
+                cilium_app = Pod("Cilium CNI")
 
-        with Cluster("k8s-app-01 (App Node)", graph_attr=inner_box_attr):
-            podinfo = Pod("Podinfo")
-            chaos = Pod("Chaos Mesh")
-            juice = Pod("OWASP Juice Shop")
-            falco = Pod("Falco")
-            cilium_app = Pod("Cilium CNI")
+                chaos - Edge(color="#64748b") - podinfo
+                juice - Edge(color="#64748b") - falco
 
-            chaos - podinfo
-            falco - juice
+            with Cluster("LXC Utilities", graph_attr=vm_box_attr):
+                pihole = LXC("Pi-hole")
 
-        with Cluster("LXC", graph_attr=inner_box_attr):
-            pihole = LXC("Pi-hole (CT 300)")
+        with Cluster("Physical Host: rpi-01 (Raspberry Pi)", graph_attr=host_box_attr):
+            rpi01 = Server("Raspberry Pi")
 
-    with Cluster("Physical Box 3: rpi-01", graph_attr=box_attr):
-        rpi01 = Server("rpi-01")
+            with Cluster("Infrastructure Services", graph_attr=vm_box_attr):
+                qdevice = Server("Corosync QDevice")
+                ntp = Server("Chrony NTP (UTC)")
 
-        with Cluster("Infrastructure Services", graph_attr=inner_box_attr):
-            qdevice = Server("Corosync QDevice")
-            ntp = Server("Chrony NTP (UTC)")
+    # Top-to-bottom layout: Raspberry Pi on top, PVE hosts side-by-side below
+    rpi01 >> Edge(style="invis") >> pve01
+    rpi01 >> Edge(style="invis") >> pve02
+    pve01 - Edge(style="invis") - pve02
 
-    # Home LAN network connections directly to the physical hosts & network services
-    lan >> Edge(color="#3182ce") >> pve01
-    lan >> Edge(color="#3182ce") >> pve02
-    lan >> Edge(color="#3182ce") >> rpi01
-
-    # Host-to-guest hierarchy (forces physical hosts to sit cleanly above inner services)
+    # Vertical hierarchy alignment (forces host icons strictly above all inner sub-boxes)
     pve01 >> Edge(style="invis") >> cp_api
-    pve02 >> Edge(style="invis") >> podinfo
-    rpi01 >> Edge(style="invis") >> qdevice
+    pve01 >> Edge(style="invis") >> argocd
+    pve01 >> Edge(style="invis") >> tailscale
 
-    # Time synchronization
-    ntp >> Edge(color="#805ad5", style="dashed", penwidth="2.0") >> pve01
-    ntp >> Edge(color="#805ad5", style="dashed", penwidth="2.0") >> pve02
+    pve02 >> Edge(style="invis") >> chaos
+    pve02 >> Edge(style="invis") >> pihole
+
+    rpi01 >> Edge(style="invis") >> qdevice
+    rpi01 >> Edge(style="invis") >> ntp
+
+    ntp >> Edge(color="#f97316", style="dashed", penwidth="2.2") >> pve01
+    ntp >> Edge(color="#f97316", style="dashed", penwidth="2.2") >> pve02
 
 graph_attr_gitops = {
-    **graph_attr,
-    "splines": "polyline",
+    "fontsize": "28",
+    "fontname": "Helvetica Neue, Helvetica, Arial, sans-serif",
+    "pad": "0.8",
+    "splines": "ortho",
     "nodesep": "1.0",
-    "ranksep": "1.5",
+    "ranksep": "1.2",
+    "bgcolor": "#f8fafc",
+    "fontcolor": "#0f172a",
 }
 
 with Diagram(
     "GitOps Flow",
     show=False,
     direction="LR",
+    curvestyle="ortho",
     graph_attr=graph_attr_gitops,
     node_attr=node_attr,
     edge_attr=edge_attr,
     filename="docs/assets/gitops-flow",
     outformat="png",
 ):
-    git = Git("Git Repository")
-    argocd = Argocd("ArgoCD")
+    with Cluster("Source Control", graph_attr=host_box_attr):
+        git = Git("Git Repository")
 
-    with Cluster("Applications", graph_attr=box_attr):
+    with Cluster("Continuous Delivery", graph_attr=host_box_attr):
+        argocd = Argocd("ArgoCD")
+
+    with Cluster("Applications", graph_attr=host_box_attr):
         podinfo = Pod("Podinfo")
         juice = Pod("OWASP Juice Shop")
 
-    with Cluster("Security & Chaos", graph_attr=box_attr):
+    with Cluster("Security & Chaos", graph_attr=host_box_attr):
         chaos = Pod("Chaos Mesh")
         falco = Pod("Falco")
 
-    with Cluster("Observability", graph_attr=box_attr):
+    with Cluster("Observability", graph_attr=host_box_attr):
         prom = Prometheus("Prometheus")
         otel = Pod("OTel Collector")
 
-    with Cluster("Dashboards", graph_attr=box_attr):
+    with Cluster("Dashboards", graph_attr=host_box_attr):
         grafana = Grafana("Grafana")
 
     # GitOps deployment flow
-    git >> Edge(color="#d97706") >> argocd
-    argocd >> Edge(color="#3182ce") >> podinfo
-    argocd >> Edge(color="#3182ce") >> juice
-    argocd >> Edge(color="#3182ce") >> prom
-    argocd >> Edge(color="#3182ce") >> grafana
-    argocd >> Edge(color="#3182ce") >> chaos
-    argocd >> Edge(color="#3182ce") >> falco
+    git >> Edge(color="#d97706", penwidth="2.0") >> argocd
+    argocd >> Edge(color="#3182ce", penwidth="1.8") >> podinfo
+    argocd >> Edge(color="#3182ce", penwidth="1.8") >> juice
+    argocd >> Edge(color="#3182ce", penwidth="1.8") >> prom
+    argocd >> Edge(color="#3182ce", penwidth="1.8") >> grafana
+    argocd >> Edge(color="#3182ce", penwidth="1.8") >> chaos
+    argocd >> Edge(color="#3182ce", penwidth="1.8") >> falco
 
     # Chaos failure injection & Security monitoring
     chaos >> Edge(style="dashed", color="#e53e3e") >> podinfo
