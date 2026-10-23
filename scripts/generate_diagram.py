@@ -86,35 +86,44 @@ with Diagram(
             pve01 = Server("pve-01")
 
             with Cluster("k8s-cp-01 (Control Plane)", graph_attr=vm_box_attr):
+                cilium_cp = Pod("Cilium CNI")
                 cp_api = API("k3s API Server")
                 cp_storage = PV("Embedded etcd")
-                cilium_cp = Pod("Cilium CNI")
+
+                cilium_cp >> Edge(style="invis") >> cp_api
                 cp_api - cp_storage
 
             with Cluster("k8s-telemetry-01 (Telemetry Node)", graph_attr=vm_box_attr):
+                hubble = Pod("Cilium Hubble")
                 argocd = Argocd("ArgoCD")
                 otel = Pod("OTel Collector")
                 prom = Prometheus("Prometheus")
                 grafana = Grafana("Grafana")
-                hubble = Pod("Cilium Hubble")
 
+                hubble >> Edge(style="invis") >> otel
+                hubble >> Edge(style="invis") >> argocd
                 otel >> prom
                 prom >> grafana
 
             with Cluster("LXC Utilities", graph_attr=vm_box_attr):
                 tailscale = LXC("Tailscale")
                 nginx = LXC("Nginx")
+                ansible = LXC("Ansible")
+
+                tailscale >> Edge(style="invis") >> nginx >> Edge(style="invis") >> ansible
 
         with Cluster("Physical Host: pve-02 (Laptop)", graph_attr=host_box_attr):
             pve02 = Server("pve-02")
 
             with Cluster("k8s-app-01 (App Node)", graph_attr=vm_box_attr):
+                cilium_app = Pod("Cilium CNI")
                 chaos = Pod("Chaos Mesh")
                 podinfo = Pod("Podinfo")
                 juice = Pod("OWASP Juice Shop")
                 falco = Pod("Falco")
-                cilium_app = Pod("Cilium CNI")
 
+                cilium_app >> Edge(style="invis") >> chaos
+                cilium_app >> Edge(style="invis") >> juice
                 chaos - Edge(color="#64748b") - podinfo
                 juice - Edge(color="#64748b") - falco
 
@@ -134,11 +143,11 @@ with Diagram(
     pve01 - Edge(style="invis") - pve02
 
     # Vertical hierarchy alignment (forces host icons strictly above all inner sub-boxes)
-    pve01 >> Edge(style="invis") >> cp_api
+    pve01 >> Edge(style="invis") >> cilium_cp
     pve01 >> Edge(style="invis") >> argocd
     pve01 >> Edge(style="invis") >> tailscale
 
-    pve02 >> Edge(style="invis") >> chaos
+    pve02 >> Edge(style="invis") >> cilium_app
     pve02 >> Edge(style="invis") >> pihole
 
     rpi01 >> Edge(style="invis") >> qdevice
