@@ -128,7 +128,7 @@ case "${NODE_ROLE}" in
     ;;
   app)
     LABELS+=("node-role.kubernetes.io/app=true")
-    LABELS+=("workload=general")
+    LABELS+=("workload=app")
     ;;
 esac
 

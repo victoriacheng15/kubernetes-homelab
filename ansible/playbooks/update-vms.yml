@@ -1,0 +1,43 @@
+---
+# ==============================================================================
+# Playbook: update-vms.yml
+# Purpose: Updates apt packages, applies security patches, and reboots if required.
+# Strategy: serial: 1 ensures rolling updates so nodes are never rebooted simultaneously.
+# ==============================================================================
+
+- name: Rolling OS Update and Patching for VMs
+  hosts: nodes
+  become: true
+  serial: 1
+  tasks:
+    - name: Update apt cache and upgrade all packages
+      apt:
+        upgrade: dist
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Remove unused dependencies and clean apt cache
+      apt:
+        autoremove: true
+        autoclean: true
+
+    - name: Check if a reboot is required by the Linux kernel
+      stat:
+        path: /var/run/reboot-required
+      register: reboot_required
+
+    - name: Reboot node if kernel or core system libraries were updated
+      reboot:
+        msg: "Rebooting node following system package updates"
+        connect_timeout: 5
+        reboot_timeout: 300
+        pre_reboot_delay: 2
+        post_reboot_delay: 10
+        test_command: uptime
+      when: reboot_required.stat.exists
+
+    - name: Display update status
+      debug:
+        msg: >-
+          {{ inventory_hostname }} is fully updated.
+          Reboot was {{ 'performed' if reboot_required.stat.exists else 'not required' }}.

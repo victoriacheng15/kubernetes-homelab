@@ -1,0 +1,7 @@
+proxmox_endpoint    = "https://<PROXMOX_HOST_IP>:8006/"
+proxmox_api_token   = "root@pam!<TOKEN_ID>=<TOKEN_SECRET_UUID>"
+proxmox_insecure    = true
+pihole_ipv4_address = "<PIHOLE_STATIC_IP>/24"
+pihole_ipv4_gateway = "<DEFAULT_GATEWAY_IP>"
+template_vm_id      = 9000
+ssh_public_key      = "ssh-ed25519 ........ user@workstation"
