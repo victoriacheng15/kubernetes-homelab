@@ -23,9 +23,3 @@ Built to expand beyond single-machine experiments and disposable cloud setups, e
 | **`pve-01`** | Mini PC | 8C / 16T | 32 GB | 1 TB NVMe | `k8s-cp-01` (Control Plane), `k8s-telemetry-01`, LXC Utilities |
 | **`pve-02`** | Laptop | 4C / 8T | 8 GB | 256 GB SSD | `k8s-app-01` (Worker), `pihole` (CT 300) |
 | **`rpi-01`** | Raspberry Pi | 4C / 4T | 2 GB+ | MicroSD | Corosync QNet QDevice (Vote 3), Local Chrony NTP (UTC) |
-
----
-
-## Architecture Topology
-
-![Kubernetes Homelab Architecture](./assets/architecture.png)
