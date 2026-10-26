@@ -37,3 +37,9 @@ variable "ssh_public_key" {
   description = "Public SSH key injected into the default ubuntu user"
   type        = string
 }
+
+variable "container_template_file_id" {
+  description = "File ID of the container template in Proxmox storage"
+  type        = string
+  default     = "local:vztmpl/debian-13-standard_13.6-1_amd64.tar.zst"
+}

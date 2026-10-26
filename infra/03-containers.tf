@@ -8,7 +8,7 @@ locals {
       node_name    = "pve-02"
       vm_id        = 300
       description  = "Local DNS Server and Ad-blocking Sinkhole"
-      tags         = ["dns", "utility", "pihole"]
+      tags         = ["dns", "utility"]
       ipv4_address = var.pihole_ipv4_address
       ipv4_gateway = var.pihole_ipv4_gateway
     }
@@ -16,21 +16,21 @@ locals {
       node_name    = "pve-01"
       vm_id        = 301
       description  = "Encrypted Tailscale Subnet Router Gateway"
-      tags         = ["vpn", "utility", "tailscale"]
+      tags         = ["vpn", "utility"]
       ipv4_address = "dhcp"
     }
     nginx = {
       node_name    = "pve-01"
       vm_id        = 302
       description  = "Local Reverse Proxy & Domain Router (*.home.arpa)"
-      tags         = ["proxy", "utility", "nginx"]
+      tags         = ["proxy", "utility"]
       ipv4_address = "dhcp"
     }
     ansible = {
       node_name    = "pve-01"
       vm_id        = 303
       description  = "Ansible Automation Control Node"
-      tags         = ["automation", "utility", "ansible"]
+      tags         = ["automation", "utility"]
       ipv4_address = "dhcp"
     }
   }
@@ -43,6 +43,11 @@ resource "proxmox_virtual_environment_container" "containers" {
   unprivileged = true
   description  = each.value.description
   tags         = each.value.tags
+
+  operating_system {
+    template_file_id = var.container_template_file_id
+    type             = "debian"
+  }
 
   initialization {
     hostname = each.key
@@ -76,5 +81,12 @@ resource "proxmox_virtual_environment_container" "containers" {
 
   features {
     nesting = true
+  }
+
+  lifecycle {
+    ignore_changes = [
+      operating_system[0].template_file_id,
+      unprivileged,
+    ]
   }
 }
