@@ -1,6 +1,6 @@
 # ADR 001: Two-Node Cluster Topology
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-11
 - **Author:** Victoria Cheng
 
@@ -44,5 +44,5 @@ Adopt an asymmetric, segregated two-node physical cluster topology with an exter
 
 ## Verification
 
-- [ ] **Manual Check:** Verify `corosync-quorumtool` shows 3 votes (pve-01, pve-02, qdevice) and cluster quorum status is active.
-- [ ] **Manual Check:** Verify that shutting down `pve-02` leaves `pve-01` in active quorum with `rpi-01`.
+- [x] **Manual Check (Cluster Quorum):** Executed `pvecm status` on `pve-01` and confirmed `Expected votes: 3`, `Total votes: 3`, `Quorum: 2`, and `Flags: Quorate Qdevice`.
+- [x] **Manual Check (Fault Tolerance):** Simulated `pve-02` outage by stopping cluster services (`systemctl stop corosync pve-cluster`). Verified on `pve-01` that `pvecm status` retained active quorum (`Total votes: 2`, `Quorum: 2`) with `/etc/pve` remaining read-write. Restored `pve-02` via `systemctl start pve-cluster corosync`.
