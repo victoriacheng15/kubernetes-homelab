@@ -54,19 +54,26 @@
   color: #ffffff !important;
 }
 
-/* High-Contrast Dark Text for Light Mode (Standard Font Weights) */
+/* High-Contrast Dark Text & Muted Slate Background for Light Mode (Zero Pure White) */
 [data-md-color-scheme="default"] {
-  --md-default-fg-color: #1a202c !important;
-  --md-default-fg-color--light: #2d3748 !important;
-  --md-default-fg-color--lighter: #4a5568 !important;
-  --md-typeset-color: #1a202c !important;
+  --md-default-bg-color: #f8fafc !important;
+  --md-default-bg-color--light: #f1f5f9 !important;
+  --md-default-bg-color--lighter: #e2e8f0 !important;
+  --md-code-bg-color: #f1f5f9 !important;
+  --md-default-fg-color: #0f172a !important;
+  --md-default-fg-color--light: #334155 !important;
+  --md-default-fg-color--lighter: #64748b !important;
+  --md-typeset-color: #0f172a !important;
 }
 
 [data-md-color-scheme="default"] .md-typeset h1,
-[data-md-color-scheme="default"] .md-typeset h2,
 [data-md-color-scheme="default"] .md-typeset h3,
 [data-md-color-scheme="default"] .md-typeset h4 {
   color: #0f172a !important;
+}
+
+[data-md-color-scheme="default"] .md-typeset h2 {
+  color: #9a3412 !important; /* Deep Burnt Rust (Warm orange family with high contrast on light bg) */
 }
 
 [data-md-color-scheme="default"] .md-typeset p,
@@ -80,6 +87,11 @@
 
 [data-md-color-scheme="default"] .md-nav__link--active {
   color: #ea580c !important;
+}
+
+/* Accent Color for H2 in Dark Mode (Vibrant Deep Orange) */
+[data-md-color-scheme="slate"] .md-typeset h2 {
+  color: #ff7043 !important;
 }
 
 /* Hide the Hamburger (Navigation Drawer) Button completely */
