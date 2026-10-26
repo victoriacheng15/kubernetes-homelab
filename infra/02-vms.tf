@@ -9,10 +9,11 @@ resource "proxmox_virtual_environment_vm" "k8s_cp_01" {
   vm_id       = 100
   name        = "k8s-cp-01"
   description = "Kubernetes Control Plane Node (k3s server, embedded etcd)"
-  tags        = ["k8s", "control-plane", "k3s"]
+  tags        = ["k8s", "control-plane"]
 
   clone {
-    vm_id = var.template_vm_id
+    vm_id     = var.template_vm_id
+    node_name = "pve-01"
   }
 
   initialization {
@@ -37,10 +38,6 @@ resource "proxmox_virtual_environment_vm" "k8s_cp_01" {
     dedicated = 4096
   }
 
-  agent {
-    enabled = true
-  }
-
   network_device {
     bridge = "vmbr0"
     model  = "virtio"
@@ -63,10 +60,11 @@ resource "proxmox_virtual_environment_vm" "k8s_telemetry_01" {
   vm_id       = 101
   name        = "k8s-telemetry-01"
   description = "Kubernetes Observability & GitOps Node"
-  tags        = ["k8s", "Observability", "gitops"]
+  tags        = ["k8s", "telemetry"]
 
   clone {
-    vm_id = var.template_vm_id
+    vm_id     = var.template_vm_id
+    node_name = "pve-01"
   }
 
   initialization {
@@ -89,10 +87,6 @@ resource "proxmox_virtual_environment_vm" "k8s_telemetry_01" {
 
   memory {
     dedicated = 8192
-  }
-
-  agent {
-    enabled = true
   }
 
   network_device {
@@ -122,10 +116,11 @@ resource "proxmox_virtual_environment_vm" "k8s_app_01" {
   vm_id       = 200
   name        = "k8s-app-01"
   description = "Kubernetes General Application Node"
-  tags        = ["k8s", "worker", "apps"]
+  tags        = ["k8s", "app"]
 
   clone {
-    vm_id = var.template_vm_id
+    vm_id     = var.template_vm_id
+    node_name = "pve-01"
   }
 
   initialization {
@@ -148,10 +143,6 @@ resource "proxmox_virtual_environment_vm" "k8s_app_01" {
 
   memory {
     dedicated = 6144
-  }
-
-  agent {
-    enabled = true
   }
 
   network_device {
