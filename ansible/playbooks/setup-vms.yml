@@ -60,7 +60,6 @@
           - jq
           - tcpdump
           - socat
-          - chrony
           - htop
           - tar
         state: present
