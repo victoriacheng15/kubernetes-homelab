@@ -10,11 +10,10 @@ Not every script runs on every virtual machine. The table below outlines where e
 
 | Script | Purpose | `k8s-cp-01` (Control Plane) | `k8s-telemetry-01` (Worker) | `k8s-app-01` (Worker) |
 | :--- | :--- | :---: | :---: | :---: |
-| [`00-preflight.sh`](./00-preflight.sh) | Hardware, network, and port audit | **Yes** | **Yes** | **Yes** |
-| [`01-prerequisites.sh`](./01-prerequisites.sh) | Kernel modules, sysctl, and swapoff | **Yes** | **Yes** | **Yes** |
-| [`02-k3s-server.sh`](./02-k3s-server.sh) | k3s server bootstrap (embedded etcd) | **Yes** | No | No |
-| [`03-cni-cilium.sh`](./03-cni-cilium.sh) | Cilium CNI and Hubble observability | **Yes** | No | No |
-| [`04-k3s-agent.sh`](./04-k3s-agent.sh) | Worker node join and role labeling | No | **Yes** | **Yes** |
+| [`00-preflight.sh`](./00-preflight.sh) | Hardware, network, and Ansible OS baseline audit | **Yes** | **Yes** | **Yes** |
+| [`01-k3s-server.sh`](./01-k3s-server.sh) | k3s server bootstrap (embedded etcd) | **Yes** | No | No |
+| [`02-k3s-agent.sh`](./02-k3s-agent.sh) | Worker node join and role labeling | No | **Yes** | **Yes** |
+| [`03-cni-cilium.sh`](./03-cni-cilium.sh) | Cilium CNI and Hubble observability across cluster | **Yes** | No | No |
 
 ---
 
@@ -28,6 +27,7 @@ Performs non-destructive environment checks on any target VM prior to configurat
 - Audits system resources against minimum profiles (vCPUs >= 2, RAM >= 4 GB, root disk space).
 - Checks Linux kernel version for Cilium eBPF compatibility (kernel >= 5.10).
 - Verifies required Kubernetes ports are free (`6443`, `8472`, `10250`).
+- Validates that Ansible OS baseline configuration is active (UTC timezone, swap disabled, `overlay` and `br_netfilter` modules, sysctl IP forwarding, and core packages).
 
 ```bash
 ./bootstrap/00-preflight.sh
@@ -37,23 +37,7 @@ Performs non-destructive environment checks on any target VM prior to configurat
 
 ---
 
-### 2. `01-prerequisites.sh` (Base Linux Tuning)
-
-Prepares Ubuntu Server VMs for container networking and Kubernetes storage:
-
-- Loads required kernel modules: `overlay` and `br_netfilter`.
-- Applies sysctl parameters (`net.ipv4.ip_forward = 1`, bridge netfilter rules).
-- Disables swap memory and comments out swap lines in `/etc/fstab`.
-- Installs base dependencies (`curl`, `jq`, `tar`, `iptables`, `open-iscsi`).
-- Creates local storage persistence directories (`/opt/local-path-provisioner`).
-
-```bash
-./bootstrap/01-prerequisites.sh
-```
-
----
-
-### 3. `02-k3s-server.sh` (Control Plane Bootstrap)
+### 2. `01-k3s-server.sh` (Control Plane Bootstrap)
 
 Initializes the Kubernetes control plane on `k8s-cp-01`:
 
@@ -64,26 +48,12 @@ Initializes the Kubernetes control plane on `k8s-cp-01`:
 - Outputs cluster join token from `/var/lib/rancher/k3s/server/node-token`.
 
 ```bash
-./bootstrap/02-k3s-server.sh
+./bootstrap/01-k3s-server.sh
 ```
 
 ---
 
-### 4. `03-cni-cilium.sh` (Cilium CNI & Hubble)
-
-Deploys Cilium in isolated VXLAN overlay mode:
-
-- Replaces kube-proxy using in-kernel eBPF (`kubeProxyReplacement: true`).
-- Configures isolated VXLAN overlay without modifying host physical NICs or LAN routes.
-- Deploys Hubble Relay and Hubble UI for L3/L4/L7 flow observability.
-
-```bash
-./bootstrap/03-cni-cilium.sh
-```
-
----
-
-### 5. `04-k3s-agent.sh` (Worker Node Join)
+### 3. `02-k3s-agent.sh` (Worker Node Join)
 
 Joins worker nodes into the cluster with automated role and workload labeling.
 
@@ -102,16 +72,31 @@ Execute the join script on the worker VM using the token from `k8s-cp-01`:
 
 ```bash
 # Join Telemetry Node (run on k8s-telemetry-01):
-./bootstrap/04-k3s-agent.sh \
+./bootstrap/02-k3s-agent.sh \
   --server-url "https://<k8s-cp-01-ip>:6443" \
   --token "<join-token>" \
   --node-role telemetry
 
 # Join Application Node (run on k8s-app-01):
-./bootstrap/04-k3s-agent.sh \
+./bootstrap/02-k3s-agent.sh \
   --server-url "https://<k8s-cp-01-ip>:6443" \
   --token "<join-token>" \
   --node-role app
+```
+
+---
+
+### 4. `03-cni-cilium.sh` (Cilium CNI & Hubble)
+
+Deploys Cilium across all joined nodes in isolated VXLAN overlay mode:
+
+- Explicitly configures cluster pool IPv4 CIDR (`10.244.0.0/16`) to prevent overlap with physical LAN subnets.
+- Enables `bpf.hostLegacyRouting` to safeguard host-destined traffic (SSH and ICMP) on virtualized interfaces.
+- Replaces kube-proxy using in-kernel eBPF (`kubeProxyReplacement: true`) pointing directly to the control plane API server.
+- Deploys Hubble Relay and Hubble UI across available worker nodes for L3/L4/L7 flow observability.
+
+```bash
+./bootstrap/03-cni-cilium.sh
 ```
 
 ---

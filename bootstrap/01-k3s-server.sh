@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Script: 02-k3s-server.sh
+# Script: 01-k3s-server.sh
 # Purpose: Bootstraps the primary k3s control plane with embedded etcd.
 #          Disables default Flannel, Traefik, and ServiceLB in preparation for Cilium.
-# Usage: ./02-k3s-server.sh [--dry-run | -d] [--help | -h]
+# Usage: ./01-k3s-server.sh [--dry-run | -d] [--help | -h]
 # ==============================================================================
 
 set -euo pipefail
@@ -170,7 +170,7 @@ else
   echo "Control Plane Endpoint: https://${NODE_IP}:6443"
   echo "Cluster Join Token:     ${NODE_TOKEN}"
   echo ""
-  echo "Worker Node Join Command (save for 04-k3s-agent.sh):"
+  echo "Worker Node Join Command (save for 02-k3s-agent.sh):"
   echo "  export K3S_URL=\"https://${NODE_IP}:6443\""
   echo "  export K3S_TOKEN=\"${NODE_TOKEN}\""
   echo "================================================================================"

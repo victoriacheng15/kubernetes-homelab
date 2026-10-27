@@ -22,7 +22,6 @@ observability enabled.
 Options:
   -d, --dry-run                 Simulate execution without modifying the cluster.
   --cilium-version <version>    Cilium release version (default: ${CILIUM_VERSION}).
-  --pod-cidr <cidr>             Pod network CIDR (default: ${POD_CIDR}).
   -h, --help                    Show this help message.
 
 EOF
@@ -38,10 +37,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     --cilium-version)
       CILIUM_VERSION="$2"
-      shift 2
-      ;;
-    --pod-cidr)
-      POD_CIDR="$2"
       shift 2
       ;;
     -h|--help)
@@ -108,6 +103,8 @@ fi
 # ------------------------------------------------------------------------------
 log_step "Deploying Cilium CNI (version: ${CILIUM_VERSION}) in VXLAN overlay mode..."
 
+API_SERVER_IP=$(hostname -I | awk '{print $1}')
+
 CILIUM_INSTALL_CMD=(
   cilium install
   --version "${CILIUM_VERSION}"
@@ -119,7 +116,7 @@ CILIUM_INSTALL_CMD=(
   --set tunnelProtocol=vxlan
   --set autoDirectNodeRoutes=false
   --set kubeProxyReplacement=true
-  --set k8sServiceHost=127.0.0.1
+  --set k8sServiceHost="${API_SERVER_IP}"
   --set k8sServicePort=6443
   --set bpf.masquerade=true
   --set hubble.relay.enabled=true
@@ -138,7 +135,7 @@ if [[ "${DRY_RUN}" == "true" ]]; then
   echo "    --set tunnelProtocol=vxlan \\"
   echo "    --set autoDirectNodeRoutes=false \\"
   echo "    --set kubeProxyReplacement=true \\"
-  echo "    --set k8sServiceHost=127.0.0.1 \\"
+  echo "    --set k8sServiceHost=\"${API_SERVER_IP}\" \\"
   echo "    --set k8sServicePort=6443 \\"
   echo "    --set bpf.masquerade=true \\"
   echo "    --set hubble.relay.enabled=true \\"
