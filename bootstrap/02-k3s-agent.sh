@@ -120,14 +120,15 @@ fi
 # ------------------------------------------------------------------------------
 log_step "Determining node labels for profile: '${NODE_ROLE}'..."
 
+# Note: The Kubernetes NodeRestriction admission plugin forbids kubelet from
+# self-assigning labels in the 'node-role.kubernetes.io/' namespace.
+# Roles must be applied via kubectl from the control plane.
 LABELS=()
 case "${NODE_ROLE}" in
   telemetry)
-    LABELS+=("node-role.kubernetes.io/telemetry=true")
     LABELS+=("workload=telemetry")
     ;;
   app)
-    LABELS+=("node-role.kubernetes.io/app=true")
     LABELS+=("workload=app")
     ;;
 esac
