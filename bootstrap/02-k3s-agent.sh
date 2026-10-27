@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Script: 04-k3s-agent.sh
+# Script: 02-k3s-agent.sh
 # Purpose: Joins worker/agent nodes (telemetry and app nodes) to the k3s cluster
 #          with workload labels.
-# Usage: ./04-k3s-agent.sh --server-url <url> --token <token> --node-role <telemetry|app> [--dry-run | -d]
+# Usage: ./02-k3s-agent.sh --server-url <url> --token <token> --node-role <telemetry|app> [--dry-run | -d]
 # ==============================================================================
 
 set -euo pipefail
@@ -35,8 +35,8 @@ Environment Variables:
   K3S_TOKEN               Can be used instead of --token
 
 Examples:
-  ./04-k3s-agent.sh --server-url https://192.168.1.10:6443 --token K10abc... --node-role telemetry
-  ./04-k3s-agent.sh --server-url https://192.168.1.10:6443 --token K10abc... --node-role app --dry-run
+  ./02-k3s-agent.sh --server-url https://192.168.1.10:6443 --token K10abc... --node-role telemetry
+  ./02-k3s-agent.sh --server-url https://192.168.1.10:6443 --token K10abc... --node-role app --dry-run
 
 EOF
   exit 0

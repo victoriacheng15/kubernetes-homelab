@@ -70,10 +70,9 @@ preflight: ## Audit VM network, resources, kernel, and ports
 bootstrap-dry-run: ## Test bootstrap automation scripts in dry-run mode
 	@echo "Testing bootstrap suite in dry-run mode..."
 	./bootstrap/00-preflight.sh --dry-run
-	./bootstrap/01-prerequisites.sh --dry-run
-	./bootstrap/02-k3s-server.sh --dry-run
+	./bootstrap/01-k3s-server.sh --dry-run
+	./bootstrap/02-k3s-agent.sh --dry-run --server-url "https://127.0.0.1:6443" --token "dummy-token" --node-role "app"
 	./bootstrap/03-cni-cilium.sh --dry-run
-	./bootstrap/04-k3s-agent.sh --dry-run
 
 # ------------------------------------------------------------------------------
 # General Formatting & Linting

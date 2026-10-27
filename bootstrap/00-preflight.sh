@@ -145,14 +145,6 @@ else
   log_warn "RAM: ${TOTAL_RAM_GB} GB detected. Less than 4 GB may constrain telemetry/app nodes."
 fi
 
-# Swap
-SWAP_TOTAL=$(free -m | awk '/^Swap:/{print $2}')
-if [[ "${SWAP_TOTAL}" -eq 0 ]]; then
-  log_pass "Swap is completely disabled (ideal for Kubernetes)."
-else
-  log_warn "Swap is currently enabled (${SWAP_TOTAL} MB). 01-prerequisites.sh will disable it."
-fi
-
 # Root Disk Space
 DISK_AVAIL_GB=$(df -BG / | awk 'NR==2 {gsub("G",""); print $4}')
 if [[ "${DISK_AVAIL_GB}" -ge 15 ]]; then
@@ -162,7 +154,7 @@ else
 fi
 
 # ------------------------------------------------------------------------------
-# 4. Port Availability Audit
+# 4. Required Ports Availability
 # ------------------------------------------------------------------------------
 echo -e "\n${BLUE}4. Required Ports Availability${RESET}"
 
@@ -186,6 +178,69 @@ for ENTRY in "${PORTS_TO_CHECK[@]}"; do
     log_info "Port ${PORT} (${DESC}) check skipped ('ss' command not installed)."
   fi
 done
+
+# ------------------------------------------------------------------------------
+# 5. Ansible OS Baseline Verification
+# ------------------------------------------------------------------------------
+echo -e "\n${BLUE}5. Ansible OS Baseline Verification${RESET}"
+
+# UTC Timezone
+if timedatectl 2>/dev/null | grep -iq "UTC"; then
+  log_pass "Timezone: UTC is active."
+else
+  log_warn "Timezone: Non-UTC detected. Baseline requirement: lock timezone to UTC via Ansible."
+fi
+
+# Swap
+SWAP_TOTAL=$(free -m | awk '/^Swap:/{print $2}')
+if [[ "${SWAP_TOTAL}" -eq 0 ]]; then
+  log_pass "Swap Memory: Disabled."
+else
+  log_fail "Swap Memory: Enabled (${SWAP_TOTAL} MB). Baseline requirement: disable swap via Ansible."
+fi
+
+# Kernel Modules
+if lsmod | grep -qw "overlay"; then
+  log_pass "Kernel Module: 'overlay' is loaded."
+else
+  log_fail "Kernel Module: 'overlay' is missing. Baseline requirement: load and persist via Ansible."
+fi
+
+if lsmod | grep -qw "br_netfilter"; then
+  log_pass "Kernel Module: 'br_netfilter' is loaded."
+else
+  log_fail "Kernel Module: 'br_netfilter' is missing. Baseline requirement: load and persist via Ansible."
+fi
+
+# Sysctl IP Forwarding
+IP_FORWARD=$(sysctl -n net.ipv4.ip_forward 2>/dev/null || echo "0")
+if [[ "${IP_FORWARD}" -eq 1 ]]; then
+  log_pass "Sysctl: net.ipv4.ip_forward = 1 (packet forwarding active)."
+else
+  log_fail "Sysctl: net.ipv4.ip_forward = 0. Baseline requirement: enable IP forwarding via Ansible."
+fi
+
+# Bridge netfilter
+BRIDGE_NF=$(sysctl -n net.bridge.bridge-nf-call-iptables 2>/dev/null || echo "0")
+if [[ "${BRIDGE_NF}" -eq 1 ]]; then
+  log_pass "Sysctl: net.bridge.bridge-nf-call-iptables = 1 (bridge netfilter active)."
+else
+  log_fail "Sysctl: net.bridge.bridge-nf-call-iptables = 0. Baseline requirement: enable bridge netfilter via Ansible."
+fi
+
+# Core Diagnostic Packages
+MISSING_PKGS=()
+for PKG in curl jq socat tcpdump htop git; do
+  if ! command -v "${PKG}" &>/dev/null; then
+    MISSING_PKGS+=("${PKG}")
+  fi
+done
+
+if [[ "${#MISSING_PKGS[@]}" -eq 0 ]]; then
+  log_pass "Core Packages: curl, jq, socat, tcpdump, htop, and git are installed."
+else
+  log_warn "Core Packages: Missing (${MISSING_PKGS[*]}). Baseline requirement: install utilities via Ansible."
+fi
 
 echo ""
 echo "================================================================================"
