@@ -5,8 +5,8 @@
 # Strategy: serial: 1 ensures rolling updates so nodes are never rebooted simultaneously.
 # ==============================================================================
 
-- name: Rolling OS Update and Patching for VMs
-  hosts: nodes
+- name: Rolling OS Update and Patching for VMs and Infrastructure
+  hosts: nodes,pi
   become: true
   serial: 1
   tasks:

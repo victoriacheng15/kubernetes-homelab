@@ -4,13 +4,15 @@
 
 This guide covers the three sequential provisioning layers that build the homelab platform from bare-metal hardware to declarative workload delivery:
 
-- **Layer 1: Infrastructure Provisioning (OpenTofu & Proxmox):** Configures physical hypervisor clustering, odd 3-vote quorum tiebreaking, authoritative local time synchronization (Chrony), base OS templates, and automated VM/LXC creation.
-- **Layer 2: Node OS Baseline Provisioning (Ansible):** Executes automated configuration management from the dedicated Ansible controller container (`CT 303`) to tune kernel modules, swap, sysctl networking parameters, and core utilities across all virtual machines.
-- **Layer 3: Declarative GitOps & Cluster Provisioning (ArgoCD & Kubernetes):** Bootstraps the lightweight Kubernetes control plane, deploys the Cilium eBPF network fabric, and initializes the ArgoCD App-of-Apps continuous delivery engine.
+![Platform Architecture Layers](assets/platform-layers.png)
+
+- **Layer 1: Infrastructure Provisioning:** Uses OpenTofu and Proxmox VE to configure physical hypervisor clustering, odd 3-vote quorum tiebreaking, authoritative local time synchronization via Chrony, base OS templates, and automated VM and LXC creation.
+- **Layer 2: Node OS Baseline Provisioning:** Uses Ansible from the dedicated controller container (`CT 303`) to tune kernel modules, swap, sysctl networking parameters, and core utilities across all virtual machines.
+- **Layer 3: Declarative GitOps & Cluster Provisioning:** Uses k3s and ArgoCD to bootstrap the lightweight Kubernetes control plane, deploy the Cilium eBPF network fabric, and initialize the App-of-Apps continuous delivery engine.
 
 ---
 
-## Layer 1: Infrastructure Provisioning (OpenTofu & Proxmox)
+## Layer 1: Infrastructure Provisioning
 
 ### Cluster & Quorum Setup
 
@@ -42,9 +44,9 @@ Physical hosts must be joined into a cluster with an external QDevice tiebreaker
    pvecm status
    ```
 
-### Time Synchronization (Chrony NTP)
+### Time Synchronization
 
-Distributed consensus engines (etcd in k3s and Corosync in Proxmox) require sub-second clock synchronization. The Raspberry Pi (`rpi-01`) acts as the authoritative local Stratum 2 time server.
+Distributed consensus engines (etcd in k3s and Corosync in Proxmox) require sub-second clock synchronization. The Raspberry Pi (`rpi-01`) acts as the authoritative local Stratum 2 time server using Chrony NTP.
 
 1. **Server Setup on Raspberry Pi (`rpi-01`):**
 
@@ -93,9 +95,9 @@ Distributed consensus engines (etcd in k3s and Corosync in Proxmox) require sub-
    chronyc sources -v
    ```
 
-### Cloud-Init Template (VM 9000)
+### Cloud-Init Template
 
-Create the Ubuntu 24.04 Server template on local hypervisor storage:
+Create the Ubuntu 24.04 Server template (VM 9000) on local hypervisor storage:
 
 1. Download the official cloud image.
 2. Initialize VM 9000 and import disk to `local-lvm`.
@@ -138,9 +140,9 @@ rm -f noble-server-cloudimg-amd64.img
 
 ---
 
-## Layer 2: Node OS Baseline Provisioning (Ansible)
+## Layer 2: Node OS Baseline Provisioning
 
-Before bootstrapping Kubernetes, all VM nodes must have active swap disabled, kernel networking modules loaded, and sysctl packet forwarding rules applied. This baseline tuning is automated via the dedicated Ansible controller container (`CT 303` on `pve-01`).
+Before bootstrapping Kubernetes, all VM nodes must have active swap disabled, kernel networking modules loaded, and sysctl packet forwarding rules applied. This baseline tuning is automated using Ansible from the dedicated controller container (`CT 303` on `pve-01`).
 
 ### Controller Container Access
 
@@ -212,15 +214,15 @@ ansible nodes -m command -a "timedatectl"
 
 ---
 
-## Layer 3: Declarative GitOps & Cluster Provisioning (ArgoCD & Kubernetes)
+## Layer 3: Declarative GitOps & Cluster Provisioning
 
-Once the physical hypervisors are clustered (Layer 1) and all virtual machine OS baselines are hardened (Layer 2), the final tier provisions the Kubernetes platform and its declarative GitOps delivery engine.
+Once the physical hypervisors are clustered (Layer 1) and all virtual machine OS baselines are hardened (Layer 2), the final tier provisions the Kubernetes platform using k3s and ArgoCD as its declarative GitOps delivery engine.
 
-### Control Plane Initialization (k3s Server)
+### Control Plane Initialization
 
-*Placeholder for control plane bootstrapping with embedded etcd on `k8s-cp-01`.*
+*Placeholder for control plane bootstrapping with embedded etcd on `k8s-cp-01` using k3s Server.*
 
-### CNI & Network Fabric Deployment (Cilium eBPF)
+### CNI & Network Fabric Deployment
 
 *Placeholder for Cilium CNI installation with Hubble observability.*
 
