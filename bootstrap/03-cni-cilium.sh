@@ -111,8 +111,10 @@ log_step "Deploying Cilium CNI (version: ${CILIUM_VERSION}) in VXLAN overlay mod
 CILIUM_INSTALL_CMD=(
   cilium install
   --version "${CILIUM_VERSION}"
-  --cluster-pool-ipv4-cidr "${POD_CIDR}"
+  --set "ipam.operator.clusterPoolIPv4PodCIDRList={${POD_CIDR}}"
+  --set ipam.operator.clusterPoolIPv4MaskSize=24
   --set ipv4NativeRoutingCIDR="${POD_CIDR}"
+  --set bpf.hostLegacyRouting=true
   --set routingMode=tunnel
   --set tunnelProtocol=vxlan
   --set autoDirectNodeRoutes=false
@@ -128,8 +130,10 @@ if [[ "${DRY_RUN}" == "true" ]]; then
   log_dry "Would execute Cilium deployment with parameters:"
   echo "  cilium install \\"
   echo "    --version \"${CILIUM_VERSION}\" \\"
-  echo "    --cluster-pool-ipv4-cidr \"${POD_CIDR}\" \\"
+  echo "    --set \"ipam.operator.clusterPoolIPv4PodCIDRList={${POD_CIDR}}\" \\"
+  echo "    --set ipam.operator.clusterPoolIPv4MaskSize=24 \\"
   echo "    --set ipv4NativeRoutingCIDR=\"${POD_CIDR}\" \\"
+  echo "    --set bpf.hostLegacyRouting=true \\"
   echo "    --set routingMode=tunnel \\"
   echo "    --set tunnelProtocol=vxlan \\"
   echo "    --set autoDirectNodeRoutes=false \\"
