@@ -10,6 +10,7 @@ set -euo pipefail
 
 DRY_RUN=false
 CILIUM_VERSION="1.16.2"
+POD_CIDR="10.244.0.0/16"
 
 usage() {
   cat <<EOF
@@ -21,6 +22,7 @@ observability enabled.
 Options:
   -d, --dry-run                 Simulate execution without modifying the cluster.
   --cilium-version <version>    Cilium release version (default: ${CILIUM_VERSION}).
+  --pod-cidr <cidr>             Pod network CIDR (default: ${POD_CIDR}).
   -h, --help                    Show this help message.
 
 EOF
@@ -36,6 +38,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --cilium-version)
       CILIUM_VERSION="$2"
+      shift 2
+      ;;
+    --pod-cidr)
+      POD_CIDR="$2"
       shift 2
       ;;
     -h|--help)
@@ -105,6 +111,8 @@ log_step "Deploying Cilium CNI (version: ${CILIUM_VERSION}) in VXLAN overlay mod
 CILIUM_INSTALL_CMD=(
   cilium install
   --version "${CILIUM_VERSION}"
+  --cluster-pool-ipv4-cidr "${POD_CIDR}"
+  --set ipv4NativeRoutingCIDR="${POD_CIDR}"
   --set routingMode=tunnel
   --set tunnelProtocol=vxlan
   --set autoDirectNodeRoutes=false
@@ -120,6 +128,8 @@ if [[ "${DRY_RUN}" == "true" ]]; then
   log_dry "Would execute Cilium deployment with parameters:"
   echo "  cilium install \\"
   echo "    --version \"${CILIUM_VERSION}\" \\"
+  echo "    --cluster-pool-ipv4-cidr \"${POD_CIDR}\" \\"
+  echo "    --set ipv4NativeRoutingCIDR=\"${POD_CIDR}\" \\"
   echo "    --set routingMode=tunnel \\"
   echo "    --set tunnelProtocol=vxlan \\"
   echo "    --set autoDirectNodeRoutes=false \\"
