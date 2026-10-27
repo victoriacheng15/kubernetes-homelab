@@ -55,20 +55,7 @@ Initializes the Kubernetes control plane on `k8s-cp-01`:
 
 ### 3. `02-k3s-agent.sh` (Worker Node Join)
 
-Joins worker nodes into the cluster with automated role and workload labeling.
-
-#### Retrieving the Join Token
-
-Before joining a worker node, retrieve the join token from the control plane (`k8s-cp-01`):
-
-```bash
-# On k8s-cp-01:
-cat /var/lib/rancher/k3s/server/node-token
-```
-
-#### Joining Worker Nodes
-
-Execute the join script on the worker VM using the token from `k8s-cp-01`:
+Joins worker nodes into the cluster with automated role and workload labeling using the endpoint and join token printed by `01-k3s-server.sh`:
 
 ```bash
 # Join Telemetry Node (run on k8s-telemetry-01):
@@ -83,6 +70,9 @@ Execute the join script on the worker VM using the token from `k8s-cp-01`:
   --token "<join-token>" \
   --node-role app
 ```
+
+> [!NOTE]
+> In accordance with the Kubernetes NodeRestriction admission plugin, worker nodes self-assign `workload=<role>`. Assign formal roles from `k8s-cp-01` via `kubectl label node <node> node-role.kubernetes.io/<role>=true`.
 
 ---
 

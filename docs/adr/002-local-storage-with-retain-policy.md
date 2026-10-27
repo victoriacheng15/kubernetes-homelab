@@ -48,6 +48,6 @@ Deploy the `local-path` provisioner with an explicit `reclaimPolicy: Retain`:
 
 ## Verification
 
-- [ ] **Manual Check:** Deploy a test pod with a PersistentVolumeClaim using the `local-path` StorageClass and verify it provisions a directory on the host filesystem.
-- [ ] **Manual Check:** Delete the PersistentVolumeClaim and verify that the underlying directory on the host disk remains intact with status `Released`.
-- [ ] **Manual Check:** Verify StorageClass definition specifies `reclaimPolicy: Retain`.
+- [ ] Deploy a test pod with a PersistentVolumeClaim using the `local-path` StorageClass and verify it provisions a directory on the host filesystem.
+- [ ] Delete the PersistentVolumeClaim and verify that the underlying directory on the host disk remains intact with status `Released`.
+- [ ] Verify StorageClass definition specifies `reclaimPolicy: Retain`.

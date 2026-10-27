@@ -105,7 +105,38 @@ with Diagram(
         os_tune >> Edge(color="#64748b", penwidth="2.2", style="bold", label="Nodes Ready") >> argo
 
 # ==============================================================================
-# Diagram 2: Bare-Metal Architecture Topology
+# Diagram 2: Physical Topology & Quorum
+# ==============================================================================
+
+with Diagram(
+    "Physical Topology",
+    show=False,
+    direction="LR",
+    curvestyle="ortho",
+    graph_attr=base_graph_attr,
+    node_attr=common_node_attr,
+    edge_attr=common_edge_attr,
+    filename="docs/assets/physical-topology",
+    outformat="png",
+):
+    with Cluster("Home LAN", graph_attr=cluster_outer_attr):
+        with Cluster("Proxmox VE Cluster", graph_attr=cluster_inner_attr):
+            pve01 = Server("pve-01")
+            pve02 = Server("pve-02")
+
+        with Cluster("rpi-01", graph_attr=cluster_inner_attr):
+            qdevice = Server("Corosync QDevice")
+            ntp = Server("Chrony NTP (UTC)")
+
+        # Corosync Quorum & Witness Links
+        pve01 - Edge(color="#2563eb", penwidth="2.5", label="Corosync") - pve02
+        qdevice >> Edge(color="#10b981", style="dashed", penwidth="2.0") >> pve01
+        qdevice >> Edge(color="#10b981", style="dashed", penwidth="2.0") >> pve02
+        ntp >> Edge(color="#f97316", style="dashed", penwidth="2.0") >> pve01
+        ntp >> Edge(color="#f97316", style="dashed", penwidth="2.0") >> pve02
+
+# ==============================================================================
+# Diagram 3: Kubernetes Homelab Architecture
 # ==============================================================================
 
 with Diagram(
@@ -121,8 +152,6 @@ with Diagram(
 ):
     with Cluster("Home LAN", graph_attr=cluster_outer_attr):
         with Cluster("Physical Host: pve-01 (Mini PC)", graph_attr=cluster_inner_attr):
-            pve01 = Server("pve-01")
-
             with Cluster("k8s-cp-01 (Control Plane)", graph_attr=cluster_outer_attr):
                 cilium_cp = Pod("Cilium CNI")
                 cp_api = API("k3s API Server")
@@ -151,8 +180,6 @@ with Diagram(
                 tailscale >> Edge(style="invis") >> nginx >> Edge(style="invis") >> ansible
 
         with Cluster("Physical Host: pve-02 (Laptop)", graph_attr=cluster_inner_attr):
-            pve02 = Server("pve-02")
-
             with Cluster("k8s-app-01 (App Node)", graph_attr=cluster_outer_attr):
                 cilium_app = Pod("Cilium CNI")
                 chaos = Pod("Chaos Mesh")
@@ -168,33 +195,9 @@ with Diagram(
             with Cluster("LXC Utilities", graph_attr=cluster_outer_attr):
                 pihole = LXC("Pi-hole")
 
-        with Cluster("Physical Host: rpi-01 (Raspberry Pi)", graph_attr=cluster_inner_attr):
-            rpi01 = Server("Raspberry Pi")
-
-            with Cluster("Infrastructure Services", graph_attr=cluster_outer_attr):
-                qdevice = Server("Corosync QDevice")
-                ntp = Server("Chrony NTP (UTC)")
-
-    # Top-to-bottom layout: Raspberry Pi on top, PVE hosts side-by-side below
-    rpi01 >> Edge(style="invis") >> pve01
-    rpi01 >> Edge(style="invis") >> pve02
-    pve01 - Edge(style="invis") - pve02
-
-    pve01 >> Edge(style="invis") >> cilium_cp
-    pve01 >> Edge(style="invis") >> argocd
-    pve01 >> Edge(style="invis") >> tailscale
-
-    pve02 >> Edge(style="invis") >> cilium_app
-    pve02 >> Edge(style="invis") >> pihole
-
-    rpi01 >> Edge(style="invis") >> qdevice
-    rpi01 >> Edge(style="invis") >> ntp
-
-    ntp >> Edge(color="#f97316", style="dashed", penwidth="2.2") >> pve01
-    ntp >> Edge(color="#f97316", style="dashed", penwidth="2.2") >> pve02
 
 # ==============================================================================
-# Diagram 3: GitOps Flow
+# Diagram 4: GitOps Flow
 # ==============================================================================
 
 with Diagram(
@@ -252,3 +255,6 @@ with Diagram(
 
     # Observability metrics query into Dashboards
     prom >> Edge(style="invis") >> grafana
+
+
+

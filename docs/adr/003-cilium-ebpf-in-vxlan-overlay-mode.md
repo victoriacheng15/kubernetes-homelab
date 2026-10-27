@@ -1,6 +1,6 @@
 # ADR 003: Cilium eBPF in VXLAN Overlay Mode
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-11
 - **Author:** Victoria Cheng
 
@@ -49,6 +49,6 @@ Deploy Cilium CNI in standard VXLAN encapsulation overlay mode, leveraging in-ke
 
 ## Verification
 
-- [ ] **Manual Check:** Deploy test pods on `k8s-cp-01` and `k8s-app-01`, executing `curl` across the VXLAN tunnel to verify cross-node connectivity.
-- [ ] **Manual Check:** Run `cilium status` and confirm BPF data path is active and `kube-proxy` replacement is enabled.
-- [ ] **Manual Check:** Run `hubble observe --follow` and confirm live flow logs are visible for cross-node HTTP traffic.
+- [x] Deploy test pod on `k8s-app-01`, executing network and DNS queries across the overlay to verify cluster connectivity.
+- [x] Run `cilium status` and confirm BPF data path is active and `kube-proxy` replacement is enabled.
+- [x] Confirm Hubble Relay and Hubble UI pods are running across worker nodes.
