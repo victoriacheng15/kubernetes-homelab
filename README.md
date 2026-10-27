@@ -2,9 +2,10 @@
 
 **A bare-metal Kubernetes homelab operating across dual-node Proxmox VE hardware.**
 
-* [🏛️ Architecture](./docs/architecture.md)
+* [🏛️ Architecture & Overview](./docs/README.md)
 * [📋 ADRs](./docs/adr/README.md)
 * [🚀 Bootstrap](./bootstrap/README.md)
+* [📝 Engineering Log](./docs/engineering-log.md)
 
 ---
 
@@ -51,7 +52,7 @@ Built to expand beyond single-machine experiments and disposable cloud setups, e
 | :---: | :--- | :--- | :--- | :--- | :--- |
 | <img src="docs/assets/logos/proxmox.svg" alt="Proxmox" width="32"> | Mini PC | `pve-01` | x86_64 | 32 GB | Proxmox host (`k8s-cp-01`, `k8s-telemetry-01`) |
 | <img src="docs/assets/logos/proxmox.svg" alt="Proxmox" width="32"> | Laptop | `pve-02` | x86_64 | 8 GB | Proxmox host (`k8s-app-01` worker) |
-| <img src="docs/assets/logos/raspberrypi.svg" alt="Raspberry Pi" width="32"> | Raspberry Pi | `rpi-01` | ARM64 | 1 GB+ | Corosync QDevice quorum tiebreaker (`corosync-qnetd`) |
+| <img src="docs/assets/logos/raspberrypi.svg" alt="Raspberry Pi" width="32"> | Raspberry Pi 3B | `rpi-01` | ARM64 | 1 GB | Corosync QDevice quorum tiebreaker (`corosync-qnetd`) |
 
 ## Quick Verification
 

@@ -194,41 +194,85 @@ The playbook enforces the following system baselines across all nodes:
 - **Sysctl Parameters:** Enables IP packet forwarding (`net.ipv4.ip_forward = 1`) and bridge netfilter calls in `/etc/sysctl.d/99-kubernetes.conf`.
 - **Core Packages:** Installs essential troubleshooting utilities (`curl`, `git`, `jq`, `tcpdump`, `socat`, `htop`, `tar`).
 
-### Baseline Verification
-
-Verify the applied system state across all nodes using Ansible ad-hoc commands:
-
-```bash
-# 1. Verify swap is completely disabled across all nodes (returns empty stdout)
-ansible nodes -m command -a "swapon --show"
-
-# 2. Verify overlay and br_netfilter kernel modules are active
-ansible nodes -m shell -a "lsmod | grep -E 'overlay|br_netfilter'"
-
-# 3. Verify sysctl IP forwarding is enabled (net.ipv4.ip_forward = 1)
-ansible nodes -m command -a "sysctl net.ipv4.ip_forward"
-
-# 4. Verify system timezone is strictly locked to UTC
-ansible nodes -m command -a "timedatectl"
-```
-
 ---
 
 ## Layer 3: Declarative GitOps & Cluster Provisioning
 
 Once the physical hypervisors are clustered (Layer 1) and all virtual machine OS baselines are hardened (Layer 2), the final tier provisions the Kubernetes platform using k3s and ArgoCD as its declarative GitOps delivery engine.
 
+### Preflight Environment Verification
+
+Before running installation scripts, execute `bootstrap/00-preflight.sh` to audit system resources, kernel version, network ports, and verify that the Ansible OS baseline (timezone, swap, kernel modules, sysctl) is active across target nodes:
+
+```bash
+./bootstrap/00-preflight.sh
+```
+
 ### Control Plane Initialization
 
-*Placeholder for control plane bootstrapping with embedded etcd on `k8s-cp-01` using k3s Server.*
+Bootstrap the isolated control plane on `k8s-cp-01` using `bootstrap/01-k3s-server.sh`. This script configures declarative k3s server settings in `/etc/rancher/k3s/config.yaml`, disables default Flannel and Traefik to prepare for Cilium, and isolates the control plane with a `NoSchedule` taint:
+
+```bash
+./bootstrap/01-k3s-server.sh
+
+# Verify local control plane status
+kubectl get nodes
+```
+
+Upon completion, the script outputs the cluster join endpoint and node token directly to the terminal for worker onboarding.
+
+### Worker Node Onboarding
+
+Execute `bootstrap/02-k3s-agent.sh` on each worker node:
+
+```bash
+# On k8s-telemetry-01:
+sudo ./bootstrap/02-k3s-agent.sh \
+  --server-url "https://<CONTROL_PLANE_IP>:6443" \
+  --token "<JOIN_TOKEN>" \
+  --node-role telemetry
+
+# On k8s-app-01:
+sudo ./bootstrap/02-k3s-agent.sh \
+  --server-url "https://<CONTROL_PLANE_IP>:6443" \
+  --token "<JOIN_TOKEN>" \
+  --node-role app
+```
+
+!!! note
+    In accordance with the Kubernetes NodeRestriction admission plugin, worker nodes self-assign the `workload=<role>` label. Formal role labels are assigned from the control plane.
+
+Apply formal role labels from `k8s-cp-01`:
+
+```bash
+kubectl label node k8s-telemetry-01 node-role.kubernetes.io/telemetry=true
+kubectl label node k8s-app-01 node-role.kubernetes.io/app=true
+```
 
 ### CNI & Network Fabric Deployment
 
-*Placeholder for Cilium CNI installation with Hubble observability.*
+Deploy Cilium eBPF in VXLAN overlay mode using `bootstrap/03-cni-cilium.sh` from `k8s-cp-01`:
 
-### Worker & Telemetry Node Joins
+```bash
+./bootstrap/03-cni-cilium.sh
+```
 
-*Placeholder for agent tokens and joining `k8s-telemetry-01` and `k8s-app-01` to the cluster.*
+Key parameters configured by the script:
+
+| Parameter | Value | Purpose |
+| :--- | :--- | :--- |
+| **Pod CIDR** | `10.244.0.0/16` | Eliminates subnet collisions with the physical LAN |
+| **Host Routing** | `bpf.hostLegacyRouting=true` | Protects host-level SSH and management traffic |
+| **Kube-Proxy** | In-kernel eBPF | High-performance socket-based load balancing |
+| **Hubble** | Relay & UI enabled | Real-time L3/L4/L7 flow observability |
+
+Verify cluster health and eBPF data path status:
+
+```bash
+cilium status --wait
+kubectl get nodes -o wide
+kubectl get pods -A
+```
 
 ### ArgoCD App-of-Apps Initialization
 

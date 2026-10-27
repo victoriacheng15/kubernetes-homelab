@@ -56,8 +56,7 @@ markdown_extensions:
 
 nav:
   - Overview: README.md
-  - Architecture: architecture.md
   - Provisioning: provisioning.md
-  - Operations & GitOps: operations.md
   - Observability & Security: platform.md
   - ADRs: adr/README.md
+  - Engineering Log: engineering-log.md

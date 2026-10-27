@@ -44,5 +44,5 @@ Adopt an asymmetric, segregated two-node physical cluster topology with an exter
 
 ## Verification
 
-- [x] **Manual Check (Cluster Quorum):** Executed `pvecm status` on `pve-01` and confirmed `Expected votes: 3`, `Total votes: 3`, `Quorum: 2`, and `Flags: Quorate Qdevice`.
-- [x] **Manual Check (Fault Tolerance):** Simulated `pve-02` outage by stopping cluster services (`systemctl stop corosync pve-cluster`). Verified on `pve-01` that `pvecm status` retained active quorum (`Total votes: 2`, `Quorum: 2`) with `/etc/pve` remaining read-write. Restored `pve-02` via `systemctl start pve-cluster corosync`.
+- [x] Executed `pvecm status` on `pve-01` and confirmed `Expected votes: 3`, `Total votes: 3`, `Quorum: 2`, and `Flags: Quorate Qdevice`.
+- [x] Simulated `pve-02` outage by stopping cluster services (`systemctl stop corosync pve-cluster`). Verified on `pve-01` that `pvecm status` retained active quorum (`Total votes: 2`, `Quorum: 2`) with `/etc/pve` remaining read-write. Restored `pve-02` via `systemctl start pve-cluster corosync`.
