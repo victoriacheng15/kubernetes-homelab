@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       markdown: ${{ steps.changes.outputs.markdown }}
+      opentofu: ${{ steps.changes.outputs.opentofu }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -27,6 +28,8 @@ jobs:
             markdown:
               - '**/*.md'
               - '.markdownlint*'
+            opentofu:
+              - 'infra/**'
 
   lint-md:
     name: Lint Markdown
@@ -44,3 +47,27 @@ jobs:
 
       - name: Run markdown lint
         run: make lint-md
+
+  validate-tofu:
+    name: Validate OpenTofu
+    needs: filter
+    if: ${{ needs.filter.outputs.opentofu == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v2
+
+      - name: Check Formatting
+        working-directory: infra
+        run: tofu fmt -check
+
+      - name: Initialize Providers
+        working-directory: infra
+        run: tofu init -backend=false
+
+      - name: Validate Configuration
+        working-directory: infra
+        run: tofu validate
