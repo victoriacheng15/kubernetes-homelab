@@ -17,16 +17,16 @@
   }
 }
 
-/* Top Header Bar (Dark Grey across both Dark and Light modes) */
+/* Top Header Bar (Tailwind gray-900) */
 .md-header {
-  background-color: #1e2124 !important;
-  border-bottom: 1px solid #2e3338 !important;
+  background-color: #111827 !important;
+  border-bottom: 1px solid #1f2937 !important;
 }
 
-/* Tabs Bar (Dark Grey across both Dark and Light modes) */
+/* Tabs Bar (Tailwind gray-800) */
 .md-tabs {
-  background-color: #282b30 !important;
-  border-bottom: 1px solid #36393e !important;
+  background-color: #1f2937 !important;
+  border-bottom: 1px solid #374151 !important;
 }
 
 /* Inactive Tab Text */
@@ -87,6 +87,18 @@
 
 [data-md-color-scheme="default"] .md-nav__link--active {
   color: #ea580c !important;
+}
+
+/* Dark Mode Theme Tuning (Tailwind gray-900) */
+[data-md-color-scheme="slate"] {
+  --md-default-bg-color: #111827 !important;
+  --md-default-bg-color--light: #1f2937 !important;
+  --md-default-bg-color--lighter: #374151 !important;
+  --md-code-bg-color: #1f2937 !important;
+  --md-default-fg-color: #f3f4f6 !important;
+  --md-default-fg-color--light: #d1d5db !important;
+  --md-default-fg-color--lighter: #9ca3af !important;
+  --md-typeset-color: #e5e7eb !important;
 }
 
 /* Accent Color for H2 in Dark Mode (Vibrant Deep Orange) */
