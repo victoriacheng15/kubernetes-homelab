@@ -1,0 +1,53 @@
+[project]
+site_name = "Kubernetes Homelab"
+site_description = "Bare-metal Kubernetes homelab operating across dual-node Proxmox VE hardware."
+site_author = "Victoria Cheng"
+site_url = "https://victoriacheng15.github.io/kubernetes-homelab/"
+repo_url = "https://github.com/victoriacheng15/kubernetes-homelab"
+repo_name = "victoriacheng15/kubernetes-homelab"
+
+nav = [
+    { "Overview" = "README.md" },
+    { "Provisioning" = "provisioning.md" },
+    { "Observability & Security" = "platform.md" },
+    { "ADRs" = "adr/README.md" },
+    { "Engineering Log" = "engineering-log.md" },
+]
+
+extra_css = [
+    "stylesheets/extra.css",
+]
+
+[project.theme]
+language = "en"
+features = [
+    "content.code.copy",
+    "content.action.edit",
+    "navigation.instant",
+    "navigation.tracking",
+    "navigation.tabs",
+    "navigation.tabs.sticky",
+    "navigation.top",
+    "search.suggest",
+    "search.highlight",
+]
+
+[[project.theme.palette]]
+scheme = "slate"
+primary = "grey"
+accent = "deep orange"
+
+[project.markdown_extensions]
+admonition = {}
+attr_list = {}
+md_in_html = {}
+tables = {}
+"pymdownx.details" = {}
+"pymdownx.highlight" = { anchor_linenums = true, line_spans = "__span", pygments_lang_class = true }
+"pymdownx.inlinehilite" = {}
+"pymdownx.snippets" = {}
+"pymdownx.superfences" = {}
+
+[project.markdown_extensions.toc]
+permalink = true
+toc_depth = 2

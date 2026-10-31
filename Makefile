@@ -16,11 +16,11 @@ help: ## Display this help message
 
 .PHONY: docs-serve docs-build
 
-docs-serve: ## Launch live MkDocs preview using Podman (http://localhost:8000)
-	podman run --rm -it -p 8000:8000 -v .:/docs:Z squidfunk/mkdocs-material
+docs-serve: ## Launch live Zensical preview using Podman (http://localhost:8000)
+	podman run --rm -it -p 8000:8000 -v .:/docs:Z zensical/zensical
 
-docs-build: ## Build static MkDocs documentation site using Podman
-	podman run --rm -v .:/docs:Z squidfunk/mkdocs-material build
+docs-build: ## Build static Zensical documentation site using Podman
+	podman run --rm -v .:/docs:Z zensical/zensical build
 
 # ------------------------------------------------------------------------------
 # Markdown Tooling
