@@ -1,10 +1,10 @@
 /* Force horizontal navigation tabs to remain visible on smaller screens */
 .md-tabs {
-  display: block !important;
+  display: block;
 }
 
 .md-tabs__list {
-  display: flex !important;
+  display: flex;
   flex-wrap: nowrap;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -17,99 +17,104 @@
   }
 }
 
+/* Remove unused primary navigation sidebar across the site */
+.md-container .md-sidebar--primary {
+  display: none;
+}
+
 /* Top Header Bar (Tailwind gray-900) */
 .md-header {
-  background-color: #111827 !important;
-  border-bottom: 1px solid #1f2937 !important;
+  background-color: #111827;
+  border-bottom: 1px solid #1f2937;
 }
 
 /* Tabs Bar (Tailwind gray-800) */
 .md-tabs {
-  background-color: #1f2937 !important;
-  border-bottom: 1px solid #374151 !important;
+  background-color: #1f2937;
+  border-bottom: 1px solid #374151;
 }
 
 /* Inactive Tab Text */
 .md-tabs__link {
-  color: #b9bbbe !important;
-  opacity: 0.85 !important;
+  color: #b9bbbe;
+  opacity: 0.85;
 }
 
 .md-tabs__link:hover {
-  color: #ffffff !important;
-  opacity: 1 !important;
+  color: #ffffff;
+  opacity: 1;
 }
 
 /* Active Tab Highlight (Deep Orange across both modes) */
 .md-tabs__link--active {
-  color: #ff7043 !important;
-  opacity: 1 !important;
-  border-bottom: 2px solid #ff7043 !important;
+  color: #ff7043;
+  opacity: 1;
+  border-bottom: 2px solid #ff7043;
 }
 
 /* Header Text, Search Icon, and Repo Badges contrast */
 .md-header__title,
 .md-header__button,
 .md-header__topic {
-  color: #ffffff !important;
+  color: #ffffff;
 }
 
 /* High-Contrast Dark Text & Muted Slate Background for Light Mode (Zero Pure White) */
 [data-md-color-scheme="default"] {
-  --md-default-bg-color: #f8fafc !important;
-  --md-default-bg-color--light: #f1f5f9 !important;
-  --md-default-bg-color--lighter: #e2e8f0 !important;
-  --md-code-bg-color: #f1f5f9 !important;
-  --md-default-fg-color: #0f172a !important;
-  --md-default-fg-color--light: #334155 !important;
-  --md-default-fg-color--lighter: #64748b !important;
-  --md-typeset-color: #0f172a !important;
+  --md-default-bg-color: #f8fafc;
+  --md-default-bg-color--light: #f1f5f9;
+  --md-default-bg-color--lighter: #e2e8f0;
+  --md-code-bg-color: #f1f5f9;
+  --md-default-fg-color: #0f172a;
+  --md-default-fg-color--light: #334155;
+  --md-default-fg-color--lighter: #64748b;
+  --md-typeset-color: #0f172a;
 }
 
 [data-md-color-scheme="default"] .md-typeset h1,
 [data-md-color-scheme="default"] .md-typeset h3,
 [data-md-color-scheme="default"] .md-typeset h4 {
-  color: #0f172a !important;
+  color: #0f172a;
 }
 
 [data-md-color-scheme="default"] .md-typeset h2 {
-  color: #9a3412 !important; /* Deep Burnt Rust (Warm orange family with high contrast on light bg) */
+  color: #9a3412; /* Deep Burnt Rust (Warm orange family with high contrast on light bg) */
 }
 
 [data-md-color-scheme="default"] .md-typeset p,
 [data-md-color-scheme="default"] .md-typeset li {
-  color: #1e293b !important;
+  color: #1e293b;
 }
 
 [data-md-color-scheme="default"] .md-nav__link {
-  color: #334155 !important;
+  color: #334155;
 }
 
 [data-md-color-scheme="default"] .md-nav__link--active {
-  color: #ea580c !important;
+  color: #ea580c;
 }
 
 /* Dark Mode Theme Tuning (Tailwind gray-900) */
 [data-md-color-scheme="slate"] {
-  --md-default-bg-color: #111827 !important;
-  --md-default-bg-color--light: #1f2937 !important;
-  --md-default-bg-color--lighter: #374151 !important;
-  --md-code-bg-color: #1f2937 !important;
-  --md-default-fg-color: #f3f4f6 !important;
-  --md-default-fg-color--light: #d1d5db !important;
-  --md-default-fg-color--lighter: #9ca3af !important;
-  --md-typeset-color: #e5e7eb !important;
+  --md-default-bg-color: #111827;
+  --md-default-bg-color--light: #1f2937;
+  --md-default-bg-color--lighter: #374151;
+  --md-code-bg-color: #1f2937;
+  --md-default-fg-color: #f3f4f6;
+  --md-default-fg-color--light: #d1d5db;
+  --md-default-fg-color--lighter: #9ca3af;
+  --md-typeset-color: #e5e7eb;
 }
 
 /* Accent Color for H2 in Dark Mode (Vibrant Deep Orange) */
 [data-md-color-scheme="slate"] .md-typeset h2 {
-  color: #ff7043 !important;
+  color: #ff7043;
 }
 
 /* Hide the Hamburger (Navigation Drawer) Button completely */
 .md-header__button[for="__drawer"],
 label[for="__drawer"],
 .md-nav--primary .md-nav__title[for="__drawer"] {
-  display: none !important;
-  visibility: hidden !important;
+  display: none;
+  visibility: hidden;
 }
