@@ -1,0 +1,9 @@
+---
+# ==============================================================================
+# Ansible Collection Dependencies
+# Install via: ansible-galaxy collection install -r requirements.yml
+# ==============================================================================
+
+collections:
+  - name: community.general
+  - name: ansible.posix

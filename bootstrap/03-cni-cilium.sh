@@ -9,7 +9,9 @@
 set -euo pipefail
 
 DRY_RUN=false
-CILIUM_VERSION="1.16.2"
+# Check latest stable releases: https://github.com/cilium/cilium/releases
+# curl -s https://api.github.com/repos/cilium/cilium/releases/latest | grep '"tag_name"'
+CILIUM_VERSION="1.20.4"
 POD_CIDR="10.244.0.0/16"
 
 usage() {
@@ -121,6 +123,8 @@ CILIUM_INSTALL_CMD=(
   --set bpf.masquerade=true
   --set hubble.relay.enabled=true
   --set hubble.ui.enabled=true
+  --set hubble.ui.service.type=NodePort
+  --set hubble.ui.service.nodePort=31235
 )
 
 if [[ "${DRY_RUN}" == "true" ]]; then
@@ -139,7 +143,9 @@ if [[ "${DRY_RUN}" == "true" ]]; then
   echo "    --set k8sServicePort=6443 \\"
   echo "    --set bpf.masquerade=true \\"
   echo "    --set hubble.relay.enabled=true \\"
-  echo "    --set hubble.ui.enabled=true"
+  echo "    --set hubble.ui.enabled=true \\"
+  echo "    --set hubble.ui.service.type=NodePort \\"
+  echo "    --set hubble.ui.service.nodePort=31235"
 else
   "${CILIUM_INSTALL_CMD[@]}"
   log_info "Cilium manifests applied to kube-system namespace."

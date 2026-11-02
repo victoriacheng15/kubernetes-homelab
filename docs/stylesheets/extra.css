@@ -118,3 +118,11 @@ label[for="__drawer"],
   display: none;
   visibility: hidden;
 }
+
+/* Enable word wrapping across all code blocks */
+.md-typeset pre > code,
+.md-typeset .highlight pre > code {
+  white-space: pre-wrap !important;
+  word-break: break-word;
+}
+

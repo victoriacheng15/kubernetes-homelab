@@ -109,5 +109,8 @@ jobs:
         with:
           enable-cache: true
 
+      - name: Install Ansible Collections
+        run: uvx --from ansible-core ansible-galaxy collection install -r ansible/requirements.yml
+
       - name: Check Playbook Syntax
         run: uvx --from ansible-core ansible-playbook --syntax-check ansible/playbooks/*.yml -i ansible/inventory.example.ini
