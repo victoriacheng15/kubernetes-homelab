@@ -244,11 +244,40 @@ Deploy the ArgoCD continuous delivery engine from `k8s-cp-01` to establish decla
    kubectl apply -f gitops/root-application.yaml
    ```
 
+5. Verify application reconciliation status using CLI or Web UI:
+
+   - **Option A: Terminal Verification (CLI):**
+
+     ```bash
+     kubectl get applications -n argocd
+     ```
+
+     Expected output confirming all applications are synchronized and healthy:
+
+     ```text
+     NAME        SYNC STATUS   HEALTH STATUS
+     apps        Synced        Healthy
+     root-app    Synced        Healthy
+     telemetry   Synced        Healthy
+     ```
+
+   - **Option B: Web UI Verification:**
+
+     To inspect the visual application tree before the Nginx reverse proxy is configured:
+
+     ```bash
+     # Port-forward the dashboard locally:
+     kubectl port-forward -n argocd svc/argocd-server 8080:443
+     ```
+
+     Navigate to `https://localhost:8080`, log in as `admin`, and enter the retrieved password.
+
 The root application automatically discovers child manifests under `gitops/bootstrap/` and reconciles workloads across dedicated node roles:
 
 | Application | Target Path | Target Node / Namespace | Operational Role |
 | :--- | :--- | :--- | :--- |
 | **`root-app`** | `gitops/bootstrap` | `argocd` | Watches Git for child application manifests |
+| **`infrastructure`** | `gitops/infrastructure` | `local-path-storage` / `infrastructure` | Foundational platform tier (StorageClass, Cert-Manager, Vault) |
 | **`telemetry`** | `gitops/telemetry` | `k8s-telemetry-01` / `telemetry` | Observability stack (Hubble, Prometheus, Grafana) |
 | **`apps`** | `gitops/apps` | `k8s-app-01` / `apps` | Tenant applications (Podinfo, Juice Shop, Chaos Mesh) |
 
