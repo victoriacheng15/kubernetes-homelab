@@ -22,10 +22,11 @@ This directory contains the Ansible automation playbooks and configuration to tu
 
    Edit `inventory.ini` and supply the IP addresses or local DNS hostnames of your three nodes.
 
-2. **Verify Connectivity:**
-   Test SSH authentication and Python availability across all nodes:
+2. **Install Required Collections & Verify Connectivity:**
+   Install project collection dependencies and verify SSH connectivity across all nodes:
 
    ```bash
+   ansible-galaxy collection install -r requirements.yml
    ansible nodes -m ping
    ```
 

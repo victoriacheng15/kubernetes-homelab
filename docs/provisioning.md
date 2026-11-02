@@ -124,6 +124,7 @@ Before bootstrapping Kubernetes, all VM nodes must have active swap disabled, ke
    # Clone repository and verify fleet connectivity:
    git clone https://github.com/victoriacheng15/kubernetes-homelab.git
    cd kubernetes-homelab/ansible
+   ansible-galaxy collection install -r requirements.yml
    ansible nodes -m ping
 
    # Execute baseline playbook across k8s-cp-01, k8s-telemetry-01, and k8s-app-01:
