@@ -93,22 +93,40 @@ Create the Ubuntu 24.04 Server template (VM 9000) on local hypervisor storage:
    tofu apply
    ```
 
+### Standalone Utility Containers
+
+Alongside the Kubernetes virtual machines, OpenTofu provisions unprivileged Debian LXC utility containers to support fleet automation and ingress routing:
+
+| Container | ID | Host | IP Mode | Operational Purpose |
+| :--- | :--- | :--- | :--- | :--- |
+| **`nginx`** | `CT 302` | `pve-01` | DHCP | Local reverse proxy and SSL gateway for ArgoCD, Hubble, and Grafana |
+| **`ansible`** | `CT 303` | `pve-01` | DHCP | Dedicated automation controller node running playbooks across the fleet |
+
 ---
 
 ## Layer 2: Node OS Baseline Provisioning
 
 Before bootstrapping Kubernetes, all VM nodes must have active swap disabled, kernel networking modules loaded, and sysctl packet forwarding rules applied. This baseline tuning is automated using Ansible from the dedicated controller container (`CT 303` on `pve-01`):
 
-1. Access the controller container (`CT 303`) and verify fleet ping connectivity.
-2. Execute the baseline hardening playbook across all target virtual machines:
+1. Enter the controller container (`CT 303`) and bootstrap `ansible-core` using `uv`.
+2. Clone the repository and verify fleet SSH ping connectivity.
+3. Execute the baseline hardening playbook across all target virtual machines:
 
    ```bash
-   # On pve-01: enter controller container and verify connectivity
+   # On pve-01: enter controller container
    pct enter 303
-   cd ~/kubernetes-homelab/ansible
+
+   # Install uv and ansible-core inside CT 303:
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   source $HOME/.local/bin/env
+   uv tool install ansible-core
+
+   # Clone repository and verify fleet connectivity:
+   git clone https://github.com/victoriacheng15/kubernetes-homelab.git
+   cd kubernetes-homelab/ansible
    ansible nodes -m ping
 
-   # Execute baseline playbook across k8s-cp-01, k8s-telemetry-01, and k8s-app-01
+   # Execute baseline playbook across k8s-cp-01, k8s-telemetry-01, and k8s-app-01:
    ansible-playbook playbooks/setup-vms.yml
    ```
 
@@ -204,4 +222,59 @@ Key parameters configured by the script:
 
 ### ArgoCD App-of-Apps Initialization
 
-*Placeholder for deploying the ArgoCD GitOps engine to reconcile platform manifests from Git.*
+Deploy the ArgoCD continuous delivery engine from `k8s-cp-01` to establish declarative GitOps reconciliation:
+
+1. Create the dedicated `argocd` namespace and install upstream manifests.
+2. Verify that all controller pods reach `Running` status.
+3. Retrieve the auto-generated administrator password for Web UI access.
+4. Apply the root orchestrator manifest to initialize the App-of-Apps hierarchy:
+
+   ```bash
+   # On control plane (k8s-cp-01):
+   kubectl create namespace argocd
+   kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+   # Verify controller pods are running:
+   kubectl get pods -n argocd
+
+   # Retrieve initial administrator password:
+   kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
+
+   # Initialize App-of-Apps pattern:
+   kubectl apply -f gitops/root-application.yaml
+   ```
+
+The root application automatically discovers child manifests under `gitops/bootstrap/` and reconciles workloads across dedicated node roles:
+
+| Application | Target Path | Target Node / Namespace | Operational Role |
+| :--- | :--- | :--- | :--- |
+| **`root-app`** | `gitops/bootstrap` | `argocd` | Watches Git for child application manifests |
+| **`telemetry`** | `gitops/telemetry` | `k8s-telemetry-01` / `telemetry` | Observability stack (Hubble, Prometheus, Grafana) |
+| **`apps`** | `gitops/apps` | `k8s-app-01` / `apps` | Tenant applications (Podinfo, Juice Shop, Chaos Mesh) |
+
+??? note "Screenshot: ArgoCD Dashboard & Application Tree"
+      ![ArgoCD App-of-Apps Dashboard](assets/screenshots/argocd-app-of-apps.png)
+
+### Ingress Gateway & Reverse Proxy Setup (Nginx)
+
+Once cluster platform services are operational, configure the dedicated Nginx container (`CT 302`) using Ansible from `CT 303` to route local traffic to in-cluster dashboards without exposing raw NodePorts:
+
+1. Define upstream proxy targets and domain virtual hosts in the Ansible playbook.
+2. Execute the Nginx configuration playbook from `CT 303`:
+
+   ```bash
+   # From controller container (CT 303):
+   cd ~/kubernetes-homelab/ansible
+   ansible-playbook playbooks/setup-nginx.yml
+   ```
+
+Key reverse proxy routes managed by the playbook:
+
+| Subdomain | In-Cluster Target | Target Node | Operational Purpose |
+| :--- | :--- | :--- | :--- |
+| `argocd.homelab.local` | `argocd-server` | `k8s-telemetry-01` | GitOps continuous delivery management dashboard |
+| `hubble.homelab.local` | `hubble-ui` | `k8s-telemetry-01` | Real-time eBPF network flow map and traffic inspection |
+| `grafana.homelab.local` | `grafana` | `k8s-telemetry-01` | Cluster resource metrics and telemetry visualization |
+| `podinfo.homelab.local` | `podinfo` | `k8s-app-01` | Reference microservice interface and canary routing testbed |
+| `juiceshop.homelab.local` | `juice-shop` | `k8s-app-01` | Vulnerable web application generating attack traffic for Falco |
+| `chaos.homelab.local` | `chaos-dashboard` | `k8s-app-01` | Visual experiment designer for fault injection and stress tests |
