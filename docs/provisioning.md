@@ -87,18 +87,18 @@ Create the Ubuntu 24.04 Server template (VM 9000) on local hypervisor storage:
 3. Deploy virtual machines and containers:
 
    ```bash
-   cd infra
-   tofu init
+   cd infra && tofu init
    tofu plan
    tofu apply
    ```
 
 ### Standalone Utility Containers
 
-Alongside the Kubernetes virtual machines, OpenTofu provisions unprivileged Debian LXC utility containers to support fleet automation and ingress routing:
+Alongside the Kubernetes virtual machines, OpenTofu provisions unprivileged Debian LXC utility containers:
 
 | Container | ID | Host | IP Mode | Operational Purpose |
 | :--- | :--- | :--- | :--- | :--- |
+| **`pihole`** | `CT 300` | `pve-02` | Static / DHCP | Local DNS sinkhole and wildcard domain resolver (`*.homelab.local`) |
 | **`nginx`** | `CT 302` | `pve-01` | DHCP | Local reverse proxy and SSL gateway for ArgoCD, Hubble, and Grafana |
 | **`ansible`** | `CT 303` | `pve-01` | DHCP | Dedicated automation controller node running playbooks across the fleet |
 
@@ -234,6 +234,9 @@ Deploy the ArgoCD continuous delivery engine from `k8s-cp-01` to establish decla
    kubectl create namespace argocd
    kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
+   # Expose argocd-server via NodePort for reverse proxy ingress:
+   kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "NodePort", "ports": [{"name": "http", "port": 80, "targetPort": 8080, "nodePort": 30080}, {"name": "https", "port": 443, "targetPort": 8080, "nodePort": 30443}]}}'
+
    # Verify controller pods are running:
    kubectl get pods -n argocd
 
@@ -255,22 +258,18 @@ Deploy the ArgoCD continuous delivery engine from `k8s-cp-01` to establish decla
      Expected output confirming all applications are synchronized and healthy:
 
      ```text
-     NAME        SYNC STATUS   HEALTH STATUS
-     apps        Synced        Healthy
-     root-app    Synced        Healthy
-     telemetry   Synced        Healthy
+     NAME             SYNC STATUS   HEALTH STATUS
+     apps             Synced        Healthy
+     infrastructure   Synced        Healthy
+     root-app         Synced        Healthy
+     telemetry        Synced        Healthy
      ```
 
    - **Option B: Web UI Verification:**
 
-     To inspect the visual application tree before the Nginx reverse proxy is configured:
+     To inspect the visual application tree across your local network before the Nginx reverse proxy is configured:
 
-     ```bash
-     # Port-forward the dashboard locally:
-     kubectl port-forward -n argocd svc/argocd-server 8080:443
-     ```
-
-     Navigate to `https://localhost:8080`, log in as `admin`, and enter the retrieved password.
+     Navigate to `https://<K8S_CP_01_IP>:30443` in your browser, log in as `admin`, and enter the retrieved password.
 
 The root application automatically discovers child manifests under `gitops/bootstrap/` and reconciles workloads across dedicated node roles:
 
@@ -288,8 +287,7 @@ The root application automatically discovers child manifests under `gitops/boots
 
 Once cluster platform services are operational, configure the dedicated Nginx container (`CT 302`) using Ansible from `CT 303` to route local traffic to in-cluster dashboards without exposing raw NodePorts:
 
-1. Define upstream proxy targets and domain virtual hosts in the Ansible playbook.
-2. Execute the Nginx configuration playbook from `CT 303`:
+1. Execute the Nginx configuration playbook from `CT 303`:
 
    ```bash
    # From controller container (CT 303):
@@ -297,13 +295,41 @@ Once cluster platform services are operational, configure the dedicated Nginx co
    ansible-playbook playbooks/setup-nginx.yml
    ```
 
+### DNS Sinkhole & Local Domain Resolution (Pi-hole)
+
+Configure the dedicated Pi-hole container (`CT 300`) using Ansible from `CT 303` to automate local wildcard DNS resolution (`*.homelab.local`) pointing to the Nginx ingress gateway (`CT 302`):
+
+1. Execute the Pi-hole setup playbook from `CT 303`:
+
+   ```bash
+   # From controller container (CT 303):
+   cd ~/kubernetes-homelab/ansible
+   ansible-playbook playbooks/setup-pihole.yml
+   ```
+
+2. Point your client workstation or home router DNS to `<PIHOLE_CT_300_IP>`:
+
+   The playbook configures a wildcard entry in `/etc/dnsmasq.d/02-homelab.conf` (`address=/homelab.local/<NGINX_IP>`), resolving all `*.homelab.local` subdomains directly without manual per-host records.
+
+   Alternatively, if accessing without configuring Pi-hole DNS, add fallback static mappings to `/etc/hosts`:
+
+   ```text
+   # On client workstation (/etc/hosts):
+   <NGINX_CT_302_IP> argocd.homelab.local
+   <NGINX_CT_302_IP> hubble.homelab.local
+   ```
+
+3. Access the dashboards in your web browser:
+   - ArgoCD: `http://argocd.homelab.local`
+   - Hubble UI: `http://hubble.homelab.local`
+
 Key reverse proxy routes managed by the playbook:
 
 | Subdomain | In-Cluster Target | Target Node | Operational Purpose |
 | :--- | :--- | :--- | :--- |
-| `argocd.homelab.local` | `argocd-server` | `k8s-telemetry-01` | GitOps continuous delivery management dashboard |
-| `hubble.homelab.local` | `hubble-ui` | `k8s-telemetry-01` | Real-time eBPF network flow map and traffic inspection |
-| `grafana.homelab.local` | `grafana` | `k8s-telemetry-01` | Cluster resource metrics and telemetry visualization |
-| `podinfo.homelab.local` | `podinfo` | `k8s-app-01` | Reference microservice interface and canary routing testbed |
-| `juiceshop.homelab.local` | `juice-shop` | `k8s-app-01` | Vulnerable web application generating attack traffic for Falco |
-| `chaos.homelab.local` | `chaos-dashboard` | `k8s-app-01` | Visual experiment designer for fault injection and stress tests |
+| `argocd.homelab.local` | `argocd-server` | `k8s-cp-01` | GitOps continuous delivery management dashboard |
+| `hubble.homelab.local` | `hubble-ui` | `k8s-cp-01` | Real-time eBPF network flow map and traffic inspection |
+| `grafana.homelab.local` | `grafana` | `k8s-cp-01` | Cluster resource metrics and telemetry visualization |
+| `podinfo.homelab.local` | `podinfo` | `k8s-cp-01` | Reference microservice interface and canary routing testbed |
+| `juiceshop.homelab.local` | `juice-shop` | `k8s-cp-01` | Vulnerable web application generating attack traffic for Falco |
+| `chaos.homelab.local` | `chaos-dashboard` | `k8s-cp-01` | Visual experiment designer for fault injection and stress tests |

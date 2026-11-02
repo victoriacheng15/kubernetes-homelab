@@ -1,0 +1,102 @@
+---
+# ==============================================================================
+# Playbook: setup-pihole.yml
+# Purpose: Configures Pi-hole DNS sinkhole on CT 300 with homelab wildcard routing.
+# Target: Runs against the [dns] inventory group.
+# ==============================================================================
+
+- name: Setup Pi-hole DNS Sinkhole and Homelab Domain Resolver
+  hosts: dns
+  become: true
+  vars:
+    nginx_ip: "{{ hostvars['nginx']['ansible_host'] }}"
+    pihole_admin_password: "{{ vault_pihole_admin_password | default('admin123') }}"
+    upstream_dns_primary: "1.1.1.1"
+    upstream_dns_secondary: "1.0.0.1"
+
+  tasks:
+    - name: Install prerequisite packages
+      apt:
+        name:
+          - curl
+          - dnsutils
+        state: present
+        update_cache: true
+
+    - name: Create Pi-hole configuration directory
+      file:
+        path: /etc/pihole
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Pre-configure unattended installation variables
+      copy:
+        dest: /etc/pihole/setupVars.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          PIHOLE_INTERFACE=eth0
+          IPV4_ADDRESS={{ ansible_default_ipv4.address | default(ansible_host) }}/24
+          IPV6_ADDRESS=
+          PIHOLE_DNS_1={{ upstream_dns_primary }}
+          PIHOLE_DNS_2={{ upstream_dns_secondary }}
+          QUERY_LOGGING=true
+          INSTALL_WEB_SERVER=true
+          INSTALL_WEB_INTERFACE=true
+          LIGHTTPD_ENABLED=true
+          CACHE_SIZE=10000
+          BLOCKING_ENABLED=true
+
+    - name: Download Pi-hole automated installer
+      get_url:
+        url: https://install.pi-hole.net
+        dest: /tmp/pihole-install.sh
+        mode: "0755"
+
+    - name: Execute unattended Pi-hole installer
+      command: /tmp/pihole-install.sh --unattended
+      environment:
+        PIHOLE_SKIP_OS_CHECK: "true"
+      args:
+        creates: /usr/local/bin/pihole
+
+    - name: Set Pi-hole admin console password
+      command: pihole -a -p "{{ pihole_admin_password }}"
+      changed_when: false
+
+    - name: Ensure /etc/dnsmasq.d directory exists
+      file:
+        path: /etc/dnsmasq.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Enable dnsmasq.d directory loading in Pi-hole v6
+      command: pihole-FTL --config misc.etc_dnsmasq_d true
+      failed_when: false
+      changed_when: false
+
+    - name: Configure dnsmasq wildcard routing for homelab.local
+      copy:
+        dest: /etc/dnsmasq.d/02-homelab.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          # Route all *.homelab.local queries to Nginx reverse proxy
+          address=/homelab.local/{{ nginx_ip }}
+      notify: Restart Pi-hole DNS
+
+    - name: Ensure Pi-hole FTL service is active and enabled
+      systemd:
+        name: pihole-FTL
+        state: started
+        enabled: true
+
+  handlers:
+    - name: Restart Pi-hole DNS
+      command: pihole restartdns
