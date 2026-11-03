@@ -39,7 +39,7 @@
         mode: "0644"
         content: |
           PIHOLE_INTERFACE=eth0
-          IPV4_ADDRESS={{ ansible_default_ipv4.address | default(ansible_host) }}/24
+          IPV4_ADDRESS={{ ansible_facts['default_ipv4']['address'] | default(ansible_host) }}/24
           IPV6_ADDRESS=
           PIHOLE_DNS_1={{ upstream_dns_primary }}
           PIHOLE_DNS_2={{ upstream_dns_secondary }}

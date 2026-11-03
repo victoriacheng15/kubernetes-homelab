@@ -2,6 +2,10 @@
 # pve-01 (Mini PC)
 # - k8s-cp-01 (VM 100): Control Plane (API Server, embedded etcd)
 # - k8s-telemetry-01 (VM 101): Observability & GitOps
+#
+# NOTE: Nodes currently use dynamic DHCP ("dhcp"). For deterministic static addressing
+# during future cluster rebuilds, switch "dhcp" to assigned static CIDRs (e.g. "10.0.0.208/24"
+# with gateway = "10.0.0.1"), allowing OpenTofu to manage and output node IPs directly.
 # ==============================================================================
 
 resource "proxmox_virtual_environment_vm" "k8s_cp_01" {

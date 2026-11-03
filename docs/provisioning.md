@@ -18,27 +18,27 @@ This guide covers the three sequential provisioning layers that build the homela
 
 Physical hosts must be joined into a cluster with an external QDevice tiebreaker to maintain an odd 3-vote quorum:
 
-1. Initialize cluster on the primary node (`pve-01`).
-2. Join the secondary node (`pve-02`).
-3. Configure the external Raspberry Pi (`rpi-01`) quorum tiebreaker and verify status:
+- Initialize cluster on the primary node (`pve-01`).
+- Join the secondary node (`pve-02`).
+- Configure the external Raspberry Pi (`rpi-01`) quorum tiebreaker and verify status:
 
-   ```bash
-   # On primary node (pve-01):
-   pvecm create k8s-homelab
+  ```bash
+  # On primary node (pve-01):
+  pvecm create k8s-homelab
 
-   # On secondary node (pve-02):
-   pvecm add <PRIMARY_NODE_IP>
+  # On secondary node (pve-02):
+  pvecm add <PRIMARY_NODE_IP>
 
-   # On Raspberry Pi (rpi-01):
-   sudo apt update && sudo apt install -y corosync-qnetd
+  # On Raspberry Pi (rpi-01):
+  sudo apt update && sudo apt install -y corosync-qnetd
 
-   # On Proxmox hosts (pve-01 and pve-02):
-   apt update && apt install -y corosync-qdevice
+  # On Proxmox hosts (pve-01 and pve-02):
+  apt update && apt install -y corosync-qdevice
 
-   # On primary node (pve-01), attach the QDevice:
-   pvecm qdevice setup <QDEVICE_IP>
-   pvecm status
-   ```
+  # On primary node (pve-01), attach the QDevice:
+  pvecm qdevice setup <QDEVICE_IP>
+  pvecm status
+  ```
 
 ??? note "Screenshot: Proxmox Cluster & QDevice Quorum"
     ![Proxmox Cluster Quorum Status](assets/screenshots/proxmox-cluster-quorum.png)
@@ -47,50 +47,52 @@ Physical hosts must be joined into a cluster with an external QDevice tiebreaker
 
 Distributed consensus engines (etcd in k3s and Corosync in Proxmox) require sub-second clock synchronization:
 
-1. Configure the Raspberry Pi (`rpi-01`) as the authoritative local Stratum 2 Chrony NTP server.
-2. Configure Proxmox hosts (`pve-01`, `pve-02`) to synchronize against `rpi-01`:
+- Configure the Raspberry Pi (`rpi-01`) as the authoritative local Stratum 2 Chrony NTP server.
+- Configure Proxmox hosts (`pve-01`, `pve-02`) to synchronize against `rpi-01`:
 
-   ```bash
-   # On Raspberry Pi (rpi-01): install Chrony and allow local homelab subnets
-   sudo timedatectl set-timezone UTC
-   sudo apt update && sudo apt install -y chrony
-   echo -e "server time.cloudflare.com iburst\nallow 192.168.0.0/16\nallow 10.0.0.0/8" | sudo tee -a /etc/chrony/chrony.conf
-   sudo systemctl restart chrony
+  ```bash
+  # On Raspberry Pi (rpi-01): install Chrony and allow local homelab subnets
+  sudo timedatectl set-timezone UTC
+  sudo apt update && sudo apt install -y chrony
+  echo -e "server time.cloudflare.com iburst\nallow 192.168.0.0/16\nallow 10.0.0.0/8" | sudo tee -a /etc/chrony/chrony.conf
+  sudo systemctl restart chrony
 
-   # On Proxmox hosts (pve-01 and pve-02): sync against rpi-01
-   echo "server <RPI_IP> iburst prefer" | sudo tee -a /etc/chrony/chrony.conf
-   sudo systemctl restart chrony && chronyc sources -v
-   ```
+  # On Proxmox hosts (pve-01 and pve-02): sync against rpi-01
+  echo "server <RPI_IP> iburst prefer" | sudo tee -a /etc/chrony/chrony.conf
+  sudo systemctl restart chrony && chronyc sources -v
+  ```
 
 ### Cloud-Init Template
 
 Create the Ubuntu 24.04 Server template (VM 9000) on local hypervisor storage:
 
-1. Download the official Ubuntu 24.04 cloud image.
-2. Initialize VM 9000, import the virtual disk to `local-lvm`, and attach the Cloud-Init drive.
-3. Convert the virtual machine to a permanent template:
+- Download the official Ubuntu 24.04 cloud image.
+- Initialize VM 9000, import the virtual disk to `local-lvm`, and attach the Cloud-Init drive.
+- Convert the virtual machine to a permanent template:
 
-   ```bash
-   wget https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
-   qm create 9000 --name "ubuntu-2404-server-template" --memory 2048 --cores 2 --cpu host --net0 virtio,bridge=vmbr0
-   qm disk import 9000 noble-server-cloudimg-amd64.img local-lvm
-   qm set 9000 --scsihw virtio-scsi-single --scsi0 local-lvm:vm-9000-disk-0,discard=on,ssd=1
-   qm set 9000 --ide2 local-lvm:cloudinit --boot order=scsi0 --serial0 socket --vga serial0
-   qm template 9000
-   rm -f noble-server-cloudimg-amd64.img
-   ```
+  ```bash
+  wget https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
+  qm create 9000 --name "ubuntu-2404-server-template" --memory 2048 --cores 2 --cpu host --net0 virtio,bridge=vmbr0
+  qm disk import 9000 noble-server-cloudimg-amd64.img local-lvm
+  qm set 9000 --scsihw virtio-scsi-single --scsi0 local-lvm:vm-9000-disk-0,discard=on,ssd=1
+  qm set 9000 --ide2 local-lvm:cloudinit --boot order=scsi0 --serial0 socket --vga serial0
+  qm template 9000
+  rm -f noble-server-cloudimg-amd64.img
+  ```
 
 ### OpenTofu Deployment
 
-1. Generate a Proxmox API token (`root@pam!tofu`) with Privilege Separation unchecked under `Datacenter -> Permissions -> API Tokens`.
-2. Populate `infra/terraform.tfvars` from `infra/terraform.tfvars.example` with host endpoints, credentials, and static network leases.
-3. Deploy virtual machines and containers:
+Deploy virtual machines and utility containers:
 
-   ```bash
-   cd infra && tofu init
-   tofu plan
-   tofu apply
-   ```
+- Generate a Proxmox API token (`root@pam!tofu`) with Privilege Separation unchecked under `Datacenter -> Permissions -> API Tokens`.
+- Populate `infra/terraform.tfvars` from `infra/terraform.tfvars.example` with host endpoints, credentials, and static network leases.
+- Provision the infrastructure resources:
+
+  ```bash
+  cd infra && tofu init
+  tofu plan
+  tofu apply
+  ```
 
 ### Standalone Utility Containers
 
@@ -108,28 +110,28 @@ Alongside the Kubernetes virtual machines, OpenTofu provisions unprivileged Debi
 
 Before bootstrapping Kubernetes, all VM nodes must have active swap disabled, kernel networking modules loaded, and sysctl packet forwarding rules applied. This baseline tuning is automated using Ansible from the dedicated controller container (`CT 303` on `pve-01`):
 
-1. Enter the controller container (`CT 303`) and bootstrap `ansible-core` using `uv`.
-2. Clone the repository and verify fleet SSH ping connectivity.
-3. Execute the baseline hardening playbook across all target virtual machines:
+- Enter the controller container (`CT 303`) and bootstrap `ansible-core` using `uv`.
+- Clone the repository and install collection dependencies.
+- Verify fleet SSH ping connectivity and execute the baseline hardening playbook across all target virtual machines:
 
-   ```bash
-   # On pve-01: enter controller container
-   pct enter 303
+  ```bash
+  # On pve-01: enter controller container
+  pct enter 303
 
-   # Install uv and ansible-core inside CT 303:
-   curl -LsSf https://astral.sh/uv/install.sh | sh
-   source $HOME/.local/bin/env
-   uv tool install ansible-core
+  # Install uv and ansible-core inside CT 303:
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  source $HOME/.local/bin/env
+  uv tool install ansible-core
 
-   # Clone repository and verify fleet connectivity:
-   git clone https://github.com/victoriacheng15/kubernetes-homelab.git
-   cd kubernetes-homelab/ansible
-   ansible-galaxy collection install -r requirements.yml
-   ansible nodes -m ping
+  # Clone repository and verify fleet connectivity:
+  git clone https://github.com/victoriacheng15/kubernetes-homelab.git
+  cd kubernetes-homelab/ansible
+  ansible-galaxy collection install -r requirements.yml
+  ansible nodes -m ping
 
-   # Execute baseline playbook across k8s-cp-01, k8s-telemetry-01, and k8s-app-01:
-   ansible-playbook playbooks/setup-vms.yml
-   ```
+  # Execute baseline playbook across k8s-cp-01, k8s-telemetry-01, and k8s-app-01:
+  ansible-playbook playbooks/setup-vms.yml
+  ```
 
 The playbook enforces the following system baselines across all nodes (`k8s-cp-01`, `k8s-telemetry-01`, `k8s-app-01`):
 
@@ -157,13 +159,13 @@ Before running installation scripts, execute `bootstrap/00-preflight.sh` to audi
 
 Bootstrap the isolated control plane on `k8s-cp-01`:
 
-1. Execute the server bootstrap script to write declarative k3s settings with Traefik and Flannel disabled.
-2. Verify local control plane status:
+- Execute the server bootstrap script to write declarative k3s settings with Traefik and Flannel disabled.
+- Verify local control plane readiness:
 
-   ```bash
-   ./bootstrap/01-k3s-server.sh
-   kubectl get nodes
-   ```
+  ```bash
+  ./bootstrap/01-k3s-server.sh
+  kubectl get nodes
+  ```
 
 Upon completion, the script outputs the cluster join endpoint and node token directly to the terminal for worker onboarding.
 
@@ -171,26 +173,26 @@ Upon completion, the script outputs the cluster join endpoint and node token dir
 
 Join worker nodes into the cluster:
 
-1. Execute the agent bootstrap script on `k8s-telemetry-01` and `k8s-app-01`.
-2. Apply formal role labels from the control plane (`k8s-cp-01`):
+- Execute the agent bootstrap script on `k8s-telemetry-01` and `k8s-app-01`.
+- Apply formal role labels from the control plane (`k8s-cp-01`):
 
-   ```bash
-   # On k8s-telemetry-01:
-   sudo ./bootstrap/02-k3s-agent.sh \
-     --server-url "https://<CONTROL_PLANE_IP>:6443" \
-     --token "<JOIN_TOKEN>" \
-     --node-role telemetry
+  ```bash
+  # On k8s-telemetry-01:
+  sudo ./bootstrap/02-k3s-agent.sh \
+    --server-url "https://<CONTROL_PLANE_IP>:6443" \
+    --token "<JOIN_TOKEN>" \
+    --node-role telemetry
 
-   # On k8s-app-01:
-   sudo ./bootstrap/02-k3s-agent.sh \
-     --server-url "https://<CONTROL_PLANE_IP>:6443" \
-     --token "<JOIN_TOKEN>" \
-     --node-role app
+  # On k8s-app-01:
+  sudo ./bootstrap/02-k3s-agent.sh \
+    --server-url "https://<CONTROL_PLANE_IP>:6443" \
+    --token "<JOIN_TOKEN>" \
+    --node-role app
 
-   # From control plane (k8s-cp-01), apply formal role labels:
-   kubectl label node k8s-telemetry-01 node-role.kubernetes.io/telemetry=true
-   kubectl label node k8s-app-01 node-role.kubernetes.io/app=true
-   ```
+  # From control plane (k8s-cp-01), apply formal role labels:
+  kubectl label node k8s-telemetry-01 node-role.kubernetes.io/telemetry=true
+  kubectl label node k8s-app-01 node-role.kubernetes.io/app=true
+  ```
 
 !!! note
     In accordance with the Kubernetes NodeRestriction admission plugin, worker nodes self-assign the `workload=<role>` label. Formal role labels are assigned from the control plane.
@@ -199,15 +201,15 @@ Join worker nodes into the cluster:
 
 Deploy Cilium eBPF in VXLAN overlay mode from `k8s-cp-01`:
 
-1. Deploy Cilium CNI with kube-proxy replacement and Hubble telemetry enabled.
-2. Verify cluster health and eBPF datapath status:
+- Deploy Cilium CNI with kube-proxy replacement and Hubble telemetry enabled.
+- Verify cluster health and eBPF datapath status:
 
-   ```bash
-   ./bootstrap/03-cni-cilium.sh
-   cilium status --wait
-   kubectl get nodes -o wide
-   kubectl get pods -A
-   ```
+  ```bash
+  ./bootstrap/03-cni-cilium.sh
+  cilium status --wait
+  kubectl get nodes -o wide
+  kubectl get pods -A
+  ```
 
 Key parameters configured by the script:
 
@@ -225,52 +227,53 @@ Key parameters configured by the script:
 
 Deploy the ArgoCD continuous delivery engine from `k8s-cp-01` to establish declarative GitOps reconciliation:
 
-1. Create the dedicated `argocd` namespace and install upstream manifests.
-2. Verify that all controller pods reach `Running` status.
-3. Retrieve the auto-generated administrator password for Web UI access.
-4. Apply the root orchestrator manifest to initialize the App-of-Apps hierarchy:
+- Create the dedicated `argocd` namespace and install upstream manifests.
+- Expose `argocd-server` via NodePort for reverse proxy ingress.
+- Verify that all controller pods reach `Running` status.
+- Retrieve the auto-generated administrator password for Web UI access.
+- Apply the root orchestrator manifest to initialize the App-of-Apps hierarchy:
 
-   ```bash
-   # On control plane (k8s-cp-01):
-   kubectl create namespace argocd
-   kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+  ```bash
+  # On control plane (k8s-cp-01):
+  kubectl create namespace argocd
+  kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
-   # Expose argocd-server via NodePort for reverse proxy ingress:
-   kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "NodePort", "ports": [{"name": "http", "port": 80, "targetPort": 8080, "nodePort": 30080}, {"name": "https", "port": 443, "targetPort": 8080, "nodePort": 30443}]}}'
+  # Expose argocd-server via NodePort for reverse proxy ingress:
+  kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "NodePort", "ports": [{"name": "http", "port": 80, "targetPort": 8080, "nodePort": 30080}, {"name": "https", "port": 443, "targetPort": 8080, "nodePort": 30443}]}}'
 
-   # Verify controller pods are running:
-   kubectl get pods -n argocd
+  # Verify controller pods are running:
+  kubectl get pods -n argocd
 
-   # Retrieve initial administrator password:
-   kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
+  # Retrieve initial administrator password:
+  kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
 
-   # Initialize App-of-Apps pattern:
-   kubectl apply -f gitops/root-application.yaml
-   ```
+  # Initialize App-of-Apps pattern:
+  kubectl apply -f gitops/root-application.yaml
+  ```
 
-5. Verify application reconciliation status using CLI or Web UI:
+- Verify application reconciliation status using CLI or Web UI:
 
-   - **Option A: Terminal Verification (CLI):**
+  - **Option A: Terminal Verification (CLI):**
 
-     ```bash
-     kubectl get applications -n argocd
-     ```
+    ```bash
+    kubectl get applications -n argocd
+    ```
 
-     Expected output confirming all applications are synchronized and healthy:
+    Expected output confirming all applications are synchronized and healthy:
 
-     ```text
-     NAME             SYNC STATUS   HEALTH STATUS
-     apps             Synced        Healthy
-     infrastructure   Synced        Healthy
-     root-app         Synced        Healthy
-     telemetry        Synced        Healthy
-     ```
+    ```text
+    NAME             SYNC STATUS   HEALTH STATUS
+    apps             Synced        Healthy
+    infrastructure   Synced        Healthy
+    root-app         Synced        Healthy
+    telemetry        Synced        Healthy
+    ```
 
-   - **Option B: Web UI Verification:**
+  - **Option B: Web UI Verification:**
 
-     To inspect the visual application tree across your local network before the Nginx reverse proxy is configured:
+    To inspect the visual application tree across your local network before the Nginx reverse proxy is configured:
 
-     Navigate to `https://<K8S_CP_01_IP>:30443` in your browser, log in as `admin`, and enter the retrieved password.
+    Navigate to `https://<K8S_CP_01_IP>:30443` in your browser, log in as `admin`, and enter the retrieved password.
 
 The root application automatically discovers child manifests under `gitops/bootstrap/` and reconciles workloads across dedicated node roles:
 
@@ -288,49 +291,54 @@ The root application automatically discovers child manifests under `gitops/boots
 
 Once cluster platform services are operational, configure the dedicated Nginx container (`CT 302`) using Ansible from `CT 303` to route local traffic to in-cluster dashboards without exposing raw NodePorts:
 
-1. Execute the Nginx configuration playbook from `CT 303`:
+- Execute the Nginx configuration playbook from `CT 303`.
+- Verify Nginx service status and deployed virtual host configurations on `CT 302`:
 
-   ```bash
-   # From controller container (CT 303):
-   cd ~/kubernetes-homelab/ansible
-   ansible-playbook playbooks/setup-nginx.yml
-   ```
+  ```bash
+  # From controller container (CT 303):
+  cd ~/kubernetes-homelab/ansible
+  ansible-playbook playbooks/setup-nginx.yml
+
+  # On Nginx container (CT 302): verify service status and syntax
+  systemctl status nginx
+  nginx -t
+
+  # Verify virtual host configuration files are deployed:
+  ls -la /etc/nginx/conf.d/
+  ```
 
 ### DNS Sinkhole & Local Domain Resolution (Pi-hole)
 
 Configure the dedicated Pi-hole container (`CT 300`) using Ansible from `CT 303` to automate local wildcard DNS resolution (`*.homelab.local`) pointing to the Nginx ingress gateway (`CT 302`):
 
-1. Execute the Pi-hole setup playbook from `CT 303`:
+- Execute the Pi-hole setup playbook from `CT 303`.
+- Verify Pi-hole service status on `CT 300`:
 
-   ```bash
-   # From controller container (CT 303):
-   cd ~/kubernetes-homelab/ansible
-   ansible-playbook playbooks/setup-pihole.yml
-   ```
+  ```bash
+  # From controller container (CT 303):
+  cd ~/kubernetes-homelab/ansible
+  ansible-playbook playbooks/setup-pihole.yml
 
-2. Point your client workstation or home router DNS to `<PIHOLE_CT_300_IP>`:
+  # On Pi-hole container (CT 300): confirm FTL is listening on port 53 and blocking is active
+  pihole status
+  ```
 
-   The playbook configures a wildcard entry in `/etc/dnsmasq.d/02-homelab.conf` (`address=/homelab.local/<NGINX_IP>`), resolving all `*.homelab.local` subdomains directly without manual per-host records.
+- Point your client workstation or home router DNS to `<PIHOLE_CT_300_IP>` (the wildcard rule in `/etc/dnsmasq.d/02-homelab.conf` resolves all `*.homelab.local` domains).
+- Alternatively, add fallback static mappings to `/etc/hosts` if accessing without configuring Pi-hole DNS:
 
-   Alternatively, if accessing without configuring Pi-hole DNS, add fallback static mappings to `/etc/hosts`:
+  ```text
+  # On client workstation (/etc/hosts, map target subdomains from table below):
+  <NGINX_CT_302_IP> *.homelab.local
+  ```
 
-   ```text
-   # On client workstation (/etc/hosts):
-   <NGINX_CT_302_IP> argocd.homelab.local
-   <NGINX_CT_302_IP> hubble.homelab.local
-   ```
+Access dashboards in your web browser via the managed reverse proxy routes:
 
-3. Access the dashboards in your web browser:
-   - ArgoCD: `http://argocd.homelab.local`
-   - Hubble UI: `http://hubble.homelab.local`
-
-Key reverse proxy routes managed by the playbook:
-
-| Subdomain | In-Cluster Target | Target Node | Operational Purpose |
-| :--- | :--- | :--- | :--- |
-| `argocd.homelab.local` | `argocd-server` | `k8s-cp-01` | GitOps continuous delivery management dashboard |
-| `hubble.homelab.local` | `hubble-ui` | `k8s-cp-01` | Real-time eBPF network flow map and traffic inspection |
-| `grafana.homelab.local` | `grafana` | `k8s-cp-01` | Cluster resource metrics and telemetry visualization |
-| `podinfo.homelab.local` | `podinfo` | `k8s-cp-01` | Reference microservice interface and canary routing testbed |
-| `juiceshop.homelab.local` | `juice-shop` | `k8s-cp-01` | Vulnerable web application generating attack traffic for Falco |
-| `chaos.homelab.local` | `chaos-dashboard` | `k8s-cp-01` | Visual experiment designer for fault injection and stress tests |
+| Subdomain | Target Service | Operational Purpose |
+| :--- | :--- | :--- |
+| `argocd.homelab.local` | `argocd-server` | GitOps continuous delivery management dashboard |
+| `hubble.homelab.local` | `hubble-ui` | Real-time eBPF network flow map and traffic inspection |
+| `pihole.homelab.local` | `pihole-FTL` | Network-wide DNS sinkhole and ad-blocking administration |
+| `grafana.homelab.local` | `grafana` | Cluster resource metrics and telemetry visualization |
+| `podinfo.homelab.local` | `podinfo` | Reference microservice interface and canary routing testbed |
+| `juiceshop.homelab.local` | `juice-shop` | Vulnerable web application generating attack traffic for Falco |
+| `chaos.homelab.local` | `chaos-dashboard` | Visual experiment designer for fault injection and stress tests |

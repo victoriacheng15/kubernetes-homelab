@@ -21,16 +21,19 @@ How should cluster networking and service routing be architected to enable cross
 
 Deploy Cilium CNI in standard VXLAN encapsulation overlay mode, leveraging in-kernel eBPF for data path routing and Hubble for network observability:
 
-1. **VXLAN Overlay Encapsulation:**
-   - Configure Cilium to encapsulate cross-node pod traffic in standard UDP packets on port 8472.
-   - Decouple all pod networking from the physical home LAN, allowing cluster communication to run transparently across existing switches.
+### VXLAN Overlay Encapsulation
 
-2. **`kube-proxy` Replacement with eBPF:**
-   - Run k3s with `--disable-kube-proxy` and `--flannel-backend=none`.
-   - Utilize Cilium's in-kernel eBPF maps for cluster service load balancing, eliminating `iptables` rule chain traversal.
+- Configure Cilium to encapsulate cross-node pod traffic in standard UDP packets on port 8472.
+- Decouple all pod networking from the physical home LAN, allowing cluster communication to run transparently across existing switches.
 
-3. **Integrated Network Observability via Hubble:**
-   - Deploy Hubble Relay and Hubble UI on `k8s-telemetry-01` to capture and stream real-time flow logs, L7 HTTP metrics, and drop diagnostics directly to Prometheus and Grafana.
+### `kube-proxy` Replacement with eBPF
+
+- Run k3s with `--disable-kube-proxy` and `--flannel-backend=none`.
+- Utilize Cilium's in-kernel eBPF maps for cluster service load balancing, eliminating `iptables` rule chain traversal.
+
+### Integrated Network Observability via Hubble
+
+- Deploy Hubble Relay and Hubble UI on `k8s-telemetry-01` to capture and stream real-time flow logs, L7 HTTP metrics, and drop diagnostics directly to Prometheus and Grafana.
 
 ## Consequences
 
