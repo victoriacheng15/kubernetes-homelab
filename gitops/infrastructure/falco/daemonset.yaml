@@ -45,6 +45,11 @@ data:
       enabled: true
     priority: notice
     buffered_outputs: false
+    container_engines:
+      cri:
+        enabled: true
+        sockets:
+          - /run/k3s/containerd/containerd.sock
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -82,12 +87,6 @@ spec:
             privileged: true
           args:
             - /usr/bin/falco
-            - --cri=/run/containerd/containerd.sock
-            - -K
-            - /var/run/secrets/kubernetes.io/serviceaccount/token
-            - -k
-            - https://$(KUBERNETES_SERVICE_HOST):$(KUBERNETES_SERVICE_PORT)
-            - -pk
           volumeMounts:
             - mountPath: /etc/falco/falco.yaml
               name: falco-config
@@ -101,7 +100,10 @@ spec:
             - mountPath: /host/dev
               name: dev-fs
               readOnly: false
-            - mountPath: /run/containerd/containerd.sock
+            - mountPath: /sys/kernel
+              name: sys-kernel
+              readOnly: true
+            - mountPath: /run/k3s/containerd/containerd.sock
               name: containerd-socket
               readOnly: true
       volumes:
@@ -117,6 +119,9 @@ spec:
         - name: dev-fs
           hostPath:
             path: /dev
+        - name: sys-kernel
+          hostPath:
+            path: /sys/kernel
         - name: containerd-socket
           hostPath:
-            path: /run/containerd/containerd.sock
+            path: /run/k3s/containerd/containerd.sock
