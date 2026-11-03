@@ -122,7 +122,9 @@ CILIUM_INSTALL_CMD=(
   --set k8sServicePort=6443
   --set bpf.masquerade=true
   --set hubble.relay.enabled=true
+  --set "hubble.relay.nodeSelector.node-role\.kubernetes\.io/telemetry=true"
   --set hubble.ui.enabled=true
+  --set "hubble.ui.nodeSelector.node-role\.kubernetes\.io/telemetry=true"
   --set hubble.ui.service.type=NodePort
   --set hubble.ui.service.nodePort=31235
 )
@@ -143,7 +145,9 @@ if [[ "${DRY_RUN}" == "true" ]]; then
   echo "    --set k8sServicePort=6443 \\"
   echo "    --set bpf.masquerade=true \\"
   echo "    --set hubble.relay.enabled=true \\"
+  echo "    --set \"hubble.relay.nodeSelector.node-role\.kubernetes\.io/telemetry=true\" \\"
   echo "    --set hubble.ui.enabled=true \\"
+  echo "    --set \"hubble.ui.nodeSelector.node-role\.kubernetes\.io/telemetry=true\" \\"
   echo "    --set hubble.ui.service.type=NodePort \\"
   echo "    --set hubble.ui.service.nodePort=31235"
 else
