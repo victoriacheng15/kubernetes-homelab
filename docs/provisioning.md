@@ -236,7 +236,7 @@ Deploy the ArgoCD continuous delivery engine from `k8s-cp-01` to establish decla
   ```bash
   # On control plane (k8s-cp-01):
   kubectl create namespace argocd
-  kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+  kubectl apply --server-side -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
   # Expose argocd-server via NodePort for reverse proxy ingress:
   kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "NodePort", "ports": [{"name": "http", "port": 80, "targetPort": 8080, "nodePort": 30080}, {"name": "https", "port": 443, "targetPort": 8080, "nodePort": 30443}]}}'
