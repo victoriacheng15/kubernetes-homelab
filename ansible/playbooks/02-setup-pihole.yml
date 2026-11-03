@@ -1,6 +1,6 @@
 ---
 # ==============================================================================
-# Playbook: setup-pihole.yml
+# Playbook: 02-setup-pihole.yml
 # Purpose: Configures Pi-hole DNS sinkhole on CT 300 with homelab wildcard routing.
 # Target: Runs against the [dns] inventory group.
 # ==============================================================================

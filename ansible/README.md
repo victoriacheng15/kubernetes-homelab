@@ -33,7 +33,7 @@ This directory contains the Ansible automation playbooks and configuration to tu
 3. **Execute the Setup Playbook:**
 
    ```bash
-   ansible-playbook playbooks/setup-vms.yml
+   ansible-playbook playbooks/01-setup-vms.yml
    ```
 
 ---

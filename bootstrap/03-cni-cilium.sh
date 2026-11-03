@@ -9,10 +9,18 @@
 set -euo pipefail
 
 DRY_RUN=false
-# Check latest stable releases: https://github.com/cilium/cilium/releases
-# curl -s https://api.github.com/repos/cilium/cilium/releases/latest | grep '"tag_name"'
-CILIUM_VERSION="1.20.4"
+CILIUM_VERSION=""
 POD_CIDR="10.244.0.0/16"
+
+get_latest_version() {
+  local version
+  version=$(curl -sSL --connect-timeout 5 https://api.github.com/repos/cilium/cilium/releases/latest 2>/dev/null | grep '"tag_name"' | sed -E 's/.*"v?([^"]+)".*/\1/' || true)
+  if [[ -z "${version}" ]]; then
+    echo "Error: Failed to detect latest Cilium version from GitHub." >&2
+    exit 1
+  fi
+  echo "${version}"
+}
 
 usage() {
   cat <<EOF
@@ -23,7 +31,7 @@ observability enabled.
 
 Options:
   -d, --dry-run                 Simulate execution without modifying the cluster.
-  --cilium-version <version>    Cilium release version (default: ${CILIUM_VERSION}).
+  -v, --version                 Display the detected latest Cilium version and exit.
   -h, --help                    Show this help message.
 
 EOF
@@ -37,9 +45,9 @@ while [[ $# -gt 0 ]]; do
       DRY_RUN=true
       shift
       ;;
-    --cilium-version)
-      CILIUM_VERSION="$2"
-      shift 2
+    -v|--version)
+      echo "Cilium version: $(get_latest_version)"
+      exit 0
       ;;
     -h|--help)
       usage
@@ -66,6 +74,11 @@ log_dry() {
 if [[ "${DRY_RUN}" == "true" ]]; then
   log_dry "Dry-run mode active. No cluster resources will be deployed."
 fi
+
+# Detect latest stable release
+log_step "Detecting latest stable Cilium release..."
+CILIUM_VERSION=$(get_latest_version)
+log_info "Detected latest Cilium release: ${CILIUM_VERSION}"
 
 # ------------------------------------------------------------------------------
 # 1. Verify Cluster Connectivity (Kubectl)

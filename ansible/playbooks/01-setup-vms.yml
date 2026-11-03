@@ -1,6 +1,6 @@
 ---
 # ==============================================================================
-# Playbook: setup-vms.yml
+# Playbook: 01-setup-vms.yml
 # Purpose: Configures fresh Ubuntu 24.04 VMs for container & Kubernetes workloads.
 # Target: Runs against all provisioned nodes in the [nodes] inventory group.
 # ==============================================================================

@@ -1,0 +1,255 @@
+---
+# ==============================================================================
+# Playbook: 06-setup-nginx.yml
+# Purpose: Configures Nginx reverse proxy on CT 302 for homelab dashboards.
+# Target: Runs against the [gateway] inventory group.
+# ==============================================================================
+
+- name: Setup Nginx Ingress Gateway
+  hosts: gateway
+  become: true
+  vars:
+    k8s_control_plane_ip: "{{ hostvars['k8s-cp-01']['ansible_host'] }}"
+    pihole_ip: "{{ hostvars['pihole']['ansible_host'] }}"
+
+  tasks:
+    - name: Install Nginx web server
+      apt:
+        name: nginx
+        state: present
+        update_cache: true
+
+    - name: Remove default Nginx welcome page
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      notify: Reload Nginx
+
+    # --------------------------------------------------------------------------
+    # Route 1: ArgoCD Web Dashboard (Core GitOps)
+    # Hostname: argocd.homelab.local -> Target: k8s-cp-01 NodePort 30443 (HTTPS)
+    # --------------------------------------------------------------------------
+    - name: Configure ArgoCD reverse proxy virtual host
+      copy:
+        dest: /etc/nginx/conf.d/argocd.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          server {
+              listen 80;
+              server_name argocd.homelab.local;
+
+              location / {
+                  proxy_pass https://{{ k8s_control_plane_ip }}:30443;
+                  proxy_ssl_verify off;
+
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+
+                  # WebSocket support
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection "upgrade";
+              }
+          }
+      notify: Reload Nginx
+
+    # --------------------------------------------------------------------------
+    # Route 2: Hubble UI Network Flow Map (Cilium eBPF Observability)
+    # Hostname: hubble.homelab.local -> Target: k8s-cp-01 NodePort 31235 (HTTP)
+    # --------------------------------------------------------------------------
+    - name: Configure Hubble UI reverse proxy virtual host
+      copy:
+        dest: /etc/nginx/conf.d/hubble.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          server {
+              listen 80;
+              server_name hubble.homelab.local;
+
+              location / {
+                  proxy_pass http://{{ k8s_control_plane_ip }}:31235;
+
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+
+                  # WebSocket support
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection "upgrade";
+              }
+          }
+      notify: Reload Nginx
+
+    # --------------------------------------------------------------------------
+    # Route 3: Pi-hole DNS Sinkhole & Admin Console (LXC CT 300)
+    # Hostname: pihole.homelab.local -> Target: CT 300 Port 80 (HTTP)
+    # --------------------------------------------------------------------------
+    - name: Configure Pi-hole reverse proxy virtual host
+      copy:
+        dest: /etc/nginx/conf.d/pihole.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          server {
+              listen 80;
+              server_name pihole.homelab.local;
+
+              location = / {
+                  return 302 /admin/;
+              }
+
+              location / {
+                  proxy_pass http://{{ pihole_ip }};
+
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+              }
+          }
+      notify: Reload Nginx
+
+    # --------------------------------------------------------------------------
+    # Route 4: Grafana Telemetry Dashboard (Wave 1 Telemetry Tier)
+    # Hostname: grafana.homelab.local -> Target: k8s-cp-01 NodePort 30300 (HTTP)
+    # --------------------------------------------------------------------------
+    - name: Configure Grafana reverse proxy virtual host
+      copy:
+        dest: /etc/nginx/conf.d/grafana.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          server {
+              listen 80;
+              server_name grafana.homelab.local;
+
+              location / {
+                  proxy_pass http://{{ k8s_control_plane_ip }}:30300;
+
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+
+                  # WebSocket support
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection "upgrade";
+              }
+          }
+      notify: Reload Nginx
+
+    # --------------------------------------------------------------------------
+    # Route 5: Podinfo Reference Microservice (Wave 2 Tenant Apps)
+    # Hostname: podinfo.homelab.local -> Target: k8s-cp-01 NodePort 30098 (HTTP)
+    # --------------------------------------------------------------------------
+    - name: Configure Podinfo reverse proxy virtual host
+      copy:
+        dest: /etc/nginx/conf.d/podinfo.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          server {
+              listen 80;
+              server_name podinfo.homelab.local;
+
+              location / {
+                  proxy_pass http://{{ k8s_control_plane_ip }}:30098;
+
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+
+                  # WebSocket support
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection "upgrade";
+              }
+          }
+      notify: Reload Nginx
+
+    # --------------------------------------------------------------------------
+    # Route 6: OWASP Juice Shop Vulnerable Application (Wave 2 Tenant Apps)
+    # Hostname: juiceshop.homelab.local -> Target: k8s-cp-01 NodePort 30081 (HTTP)
+    # --------------------------------------------------------------------------
+    - name: Configure Juice Shop reverse proxy virtual host
+      copy:
+        dest: /etc/nginx/conf.d/juiceshop.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          server {
+              listen 80;
+              server_name juiceshop.homelab.local;
+
+              location / {
+                  proxy_pass http://{{ k8s_control_plane_ip }}:30081;
+
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+
+                  # WebSocket support
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection "upgrade";
+              }
+          }
+      notify: Reload Nginx
+
+    # --------------------------------------------------------------------------
+    # Route 7: Chaos Mesh Dashboard (Resilience & Chaos Platform)
+    # Hostname: chaos.homelab.local -> Target: k8s-cp-01 NodePort 31333 (HTTP)
+    # --------------------------------------------------------------------------
+    - name: Configure Chaos Mesh Dashboard reverse proxy virtual host
+      copy:
+        dest: /etc/nginx/conf.d/chaos.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          server {
+              listen 80;
+              server_name chaos.homelab.local;
+
+              location / {
+                  proxy_pass http://{{ k8s_control_plane_ip }}:31333;
+
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+
+                  # WebSocket support
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection "upgrade";
+              }
+          }
+      notify: Reload Nginx
+
+    - name: Ensure Nginx service is running and enabled
+      systemd:
+        name: nginx
+        state: started
+        enabled: true
+
+  handlers:
+    - name: Reload Nginx
+      systemd:
+        name: nginx
+        state: reloaded

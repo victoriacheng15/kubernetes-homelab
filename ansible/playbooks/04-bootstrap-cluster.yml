@@ -1,0 +1,48 @@
+---
+# ==============================================================================
+# Playbook: 04-bootstrap-cluster.yml
+# Purpose: Orchestrates k3s control plane initialization and worker node joins.
+# Targets:
+#   - Play 1: control_plane (k8s-cp-01)
+#   - Play 2: workers (k8s-telemetry-01, k8s-app-01)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Play 1: Control Plane Initialization
+# ------------------------------------------------------------------------------
+- name: Initialize Kubernetes Control Plane
+  hosts: control_plane
+  become: true
+  tasks:
+    - name: Execute control plane initialization script
+      ansible.builtin.script: ../../bootstrap/01-k3s-server.sh
+      args:
+        creates: /etc/rancher/k3s/k3s.yaml
+
+    - name: Read cluster join token from control plane
+      ansible.builtin.slurp:
+        src: /var/lib/rancher/k3s/server/node-token
+      register: k3s_token_raw
+
+    - name: Register cluster join token in memory
+      ansible.builtin.set_fact:
+        k3s_token: "{{ k3s_token_raw.content | b64decode | trim }}"
+
+
+
+# ------------------------------------------------------------------------------
+# Play 2: Worker Node Joining
+# ------------------------------------------------------------------------------
+- name: Join Worker Nodes to Cluster
+  hosts: workers
+  become: true
+  tasks:
+    - name: Execute worker node agent join script
+      ansible.builtin.script:
+        cmd: >-
+          ../../bootstrap/02-k3s-agent.sh
+          --server-url "https://{{ hostvars['k8s-cp-01']['ansible_host'] }}:6443"
+          --token "{{ hostvars['k8s-cp-01']['k3s_token'] }}"
+          --node-role "{{ node_role }}"
+      args:
+        creates: /etc/rancher/k3s/config.yaml

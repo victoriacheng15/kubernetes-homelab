@@ -1,0 +1,39 @@
+---
+# ==============================================================================
+# Playbook: 05-setup-cluster-services.yml
+# Purpose: Deploys in-cluster network, GitOps, and platform services:
+#          1. Cilium eBPF CNI & Hubble observability
+#          2. ArgoCD continuous delivery engine
+#          3. Chaos Mesh resilience platform
+# Target: Runs against the [control_plane] inventory group.
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Play 1: Cilium eBPF CNI & Hubble Observability
+# ------------------------------------------------------------------------------
+- name: Deploy Cilium CNI and Hubble Observability
+  hosts: control_plane
+  become: true
+  tasks:
+    - name: Execute Cilium CNI bootstrap script
+      ansible.builtin.script: ../../bootstrap/03-cni-cilium.sh
+
+# ------------------------------------------------------------------------------
+# Play 2: ArgoCD GitOps Engine
+# ------------------------------------------------------------------------------
+- name: Deploy ArgoCD GitOps Engine
+  hosts: control_plane
+  become: true
+  tasks:
+    - name: Execute ArgoCD installation script
+      ansible.builtin.script: ../../bootstrap/04-gitops-argocd.sh
+
+# ------------------------------------------------------------------------------
+# Play 3: Chaos Mesh Resilience Platform
+# ------------------------------------------------------------------------------
+- name: Deploy Chaos Mesh Platform
+  hosts: control_plane
+  become: true
+  tasks:
+    - name: Execute Chaos Mesh bootstrap script
+      ansible.builtin.script: ../../bootstrap/05-chaos-mesh.sh
