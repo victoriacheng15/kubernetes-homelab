@@ -38,6 +38,10 @@ metadata:
   namespace: falco
 data:
   falco.yaml: |
+    rules_files:
+      - /etc/falco/falco_rules.yaml
+      - /etc/falco/falco_rules.local.yaml
+      - /etc/falco/rules.d
     engine:
       kind: modern_ebpf
     load_plugins: []

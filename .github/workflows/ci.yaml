@@ -114,3 +114,36 @@ jobs:
 
       - name: Check Playbook Syntax
         run: uvx --from ansible-core ansible-playbook --syntax-check ansible/playbooks/*.yml -i ansible/inventory.example.ini
+
+  validate-gitops:
+    name: Validate GitOps Manifests
+    needs: filter
+    if: ${{ needs.filter.outputs.gitops == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Setup Kubeconform
+        run: |
+          curl -sL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar xz
+          sudo mv kubeconform /usr/local/bin/
+
+      - name: Validate Kustomize Builds
+        run: |
+          for dir in $(find gitops -name kustomization.yaml -exec dirname {} \; | sort -u); do
+            echo "::group::Validating $dir"
+            kubectl kustomize "$dir" > /dev/null
+            echo "::endgroup::"
+          done
+
+      - name: Validate Kubernetes Schemas
+        run: |
+          for dir in $(find gitops -name kustomization.yaml -exec dirname {} \; | sort -u); do
+            echo "::group::Schema checking $dir"
+            kubectl kustomize "$dir" | kubeconform -strict -ignore-missing-schemas -summary
+            echo "::endgroup::"
+          done
