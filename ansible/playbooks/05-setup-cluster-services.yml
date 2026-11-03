@@ -14,6 +14,8 @@
 - name: Deploy Cilium CNI and Hubble Observability
   hosts: control_plane
   become: true
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   tasks:
     - name: Execute Cilium CNI bootstrap script
       ansible.builtin.script: ../../bootstrap/03-cni-cilium.sh
@@ -24,6 +26,8 @@
 - name: Deploy ArgoCD GitOps Engine
   hosts: control_plane
   become: true
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   tasks:
     - name: Execute ArgoCD installation script
       ansible.builtin.script: ../../bootstrap/04-gitops-argocd.sh
@@ -34,6 +38,8 @@
 - name: Deploy Chaos Mesh Platform
   hosts: control_plane
   become: true
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   tasks:
     - name: Execute Chaos Mesh bootstrap script
       ansible.builtin.script: ../../bootstrap/05-chaos-mesh.sh
