@@ -99,59 +99,60 @@ else
 fi
 
 # ------------------------------------------------------------------------------
-# 2. Create ArgoCD Namespace
+# 2. Check Existing Installation or Deploy ArgoCD
 # ------------------------------------------------------------------------------
-log_step "Ensuring '${ARGOCD_NAMESPACE}' namespace exists..."
-
-if [[ "${DRY_RUN}" == "true" ]]; then
-  log_dry "Would create namespace '${ARGOCD_NAMESPACE}' if not already present"
+if [[ "${DRY_RUN}" == "false" ]] && kubectl get deployment argocd-server -n "${ARGOCD_NAMESPACE}" >/dev/null 2>&1 && kubectl rollout status deployment/argocd-server -n "${ARGOCD_NAMESPACE}" --timeout=5s >/dev/null 2>&1; then
+  log_info "ArgoCD is already installed and operational in '${ARGOCD_NAMESPACE}'. Skipping installation."
 else
-  if ! kubectl get namespace "${ARGOCD_NAMESPACE}" >/dev/null 2>&1; then
-    kubectl create namespace "${ARGOCD_NAMESPACE}"
-    log_info "Namespace '${ARGOCD_NAMESPACE}' created."
+  log_step "Ensuring '${ARGOCD_NAMESPACE}' namespace exists..."
+  if [[ "${DRY_RUN}" == "true" ]]; then
+    log_dry "Would create namespace '${ARGOCD_NAMESPACE}' if not already present"
   else
-    log_info "Namespace '${ARGOCD_NAMESPACE}' already exists."
+    if ! kubectl get namespace "${ARGOCD_NAMESPACE}" >/dev/null 2>&1; then
+      kubectl create namespace "${ARGOCD_NAMESPACE}"
+      log_info "Namespace '${ARGOCD_NAMESPACE}' created."
+    else
+      log_info "Namespace '${ARGOCD_NAMESPACE}' already exists."
+    fi
   fi
-fi
 
-# ------------------------------------------------------------------------------
-# 3. Deploy Upstream ArgoCD Manifests
-# ------------------------------------------------------------------------------
-log_step "Applying upstream ArgoCD manifests (${ARGOCD_VERSION})..."
+  # ----------------------------------------------------------------------------
+  # 3. Deploy Upstream ArgoCD Manifests
+  # ----------------------------------------------------------------------------
+  log_step "Applying upstream ArgoCD manifests (${ARGOCD_VERSION})..."
+  APPLY_CMD="kubectl apply --server-side -n ${ARGOCD_NAMESPACE} -f ${ARGOCD_MANIFEST_URL}"
 
-APPLY_CMD="kubectl apply --server-side -n ${ARGOCD_NAMESPACE} -f ${ARGOCD_MANIFEST_URL}"
+  if [[ "${DRY_RUN}" == "true" ]]; then
+    log_dry "Would execute: ${APPLY_CMD}"
+  else
+    eval "${APPLY_CMD}"
+    log_info "ArgoCD manifests successfully applied."
+  fi
 
-if [[ "${DRY_RUN}" == "true" ]]; then
-  log_dry "Would execute: ${APPLY_CMD}"
-else
-  eval "${APPLY_CMD}"
-  log_info "ArgoCD manifests successfully applied."
-fi
+  # ----------------------------------------------------------------------------
+  # 4. Expose ArgoCD Server via NodePort
+  # ----------------------------------------------------------------------------
+  log_step "Exposing argocd-server via NodePort (HTTP: 30080, HTTPS: 30443)..."
+  PATCH_PAYLOAD='{"spec": {"type": "NodePort", "ports": [{"name": "http", "port": 80, "targetPort": 8080, "nodePort": 30080}, {"name": "https", "port": 443, "targetPort": 8080, "nodePort": 30443}]}}'
 
-# ------------------------------------------------------------------------------
-# 4. Expose ArgoCD Server via NodePort
-# ------------------------------------------------------------------------------
-log_step "Exposing argocd-server via NodePort (HTTP: 30080, HTTPS: 30443)..."
+  if [[ "${DRY_RUN}" == "true" ]]; then
+    log_dry "Would execute: kubectl patch svc argocd-server -n ${ARGOCD_NAMESPACE} -p '${PATCH_PAYLOAD}'"
+  else
+    kubectl patch svc argocd-server -n "${ARGOCD_NAMESPACE}" -p "${PATCH_PAYLOAD}"
+    log_info "argocd-server patched to NodePort."
+  fi
 
-PATCH_PAYLOAD='{"spec": {"type": "NodePort", "ports": [{"name": "http", "port": 80, "targetPort": 8080, "nodePort": 30080}, {"name": "https", "port": 443, "targetPort": 8080, "nodePort": 30443}]}}'
+  # ----------------------------------------------------------------------------
+  # 5. Wait for Deployment Rollout Readiness
+  # ----------------------------------------------------------------------------
+  log_step "Waiting for argocd-server deployment readiness..."
 
-if [[ "${DRY_RUN}" == "true" ]]; then
-  log_dry "Would execute: kubectl patch svc argocd-server -n ${ARGOCD_NAMESPACE} -p '${PATCH_PAYLOAD}'"
-else
-  kubectl patch svc argocd-server -n "${ARGOCD_NAMESPACE}" -p "${PATCH_PAYLOAD}"
-  log_info "argocd-server patched to NodePort."
-fi
-
-# ------------------------------------------------------------------------------
-# 5. Wait for Deployment Rollout Readiness
-# ------------------------------------------------------------------------------
-log_step "Waiting for argocd-server deployment readiness..."
-
-if [[ "${DRY_RUN}" == "true" ]]; then
-  log_dry "Would execute: kubectl rollout status deployment/argocd-server -n ${ARGOCD_NAMESPACE} --timeout=180s"
-else
-  kubectl rollout status deployment/argocd-server -n "${ARGOCD_NAMESPACE}" --timeout=180s
-  log_info "argocd-server is operational."
+  if [[ "${DRY_RUN}" == "true" ]]; then
+    log_dry "Would execute: kubectl rollout status deployment/argocd-server -n ${ARGOCD_NAMESPACE} --timeout=180s"
+  else
+    kubectl rollout status deployment/argocd-server -n "${ARGOCD_NAMESPACE}" --timeout=180s
+    log_info "argocd-server is operational."
+  fi
 fi
 
 echo ""

@@ -123,62 +123,64 @@ else
 fi
 
 # ------------------------------------------------------------------------------
-# 3. Ensure Namespace Exists
+# 3. Check Existing Installation or Deploy Chaos Mesh
 # ------------------------------------------------------------------------------
-log_step "Ensuring '${CHAOS_NAMESPACE}' namespace exists..."
-
-if [[ "${DRY_RUN}" == "true" ]]; then
-  log_dry "Would create namespace '${CHAOS_NAMESPACE}' if not already present"
+if [[ "${DRY_RUN}" == "false" ]] && kubectl get deployment chaos-controller-manager -n "${CHAOS_NAMESPACE}" >/dev/null 2>&1 && kubectl rollout status deployment/chaos-controller-manager -n "${CHAOS_NAMESPACE}" --timeout=5s >/dev/null 2>&1; then
+  log_info "Chaos Mesh is already installed and operational in '${CHAOS_NAMESPACE}'. Skipping installation."
 else
-  if ! kubectl get namespace "${CHAOS_NAMESPACE}" >/dev/null 2>&1; then
-    kubectl create namespace "${CHAOS_NAMESPACE}"
-    log_info "Namespace '${CHAOS_NAMESPACE}' created."
+  log_step "Ensuring '${CHAOS_NAMESPACE}' namespace exists..."
+  if [[ "${DRY_RUN}" == "true" ]]; then
+    log_dry "Would create namespace '${CHAOS_NAMESPACE}' if not already present"
   else
-    log_info "Namespace '${CHAOS_NAMESPACE}' already exists."
+    if ! kubectl get namespace "${CHAOS_NAMESPACE}" >/dev/null 2>&1; then
+      kubectl create namespace "${CHAOS_NAMESPACE}"
+      log_info "Namespace '${CHAOS_NAMESPACE}' created."
+    else
+      log_info "Namespace '${CHAOS_NAMESPACE}' already exists."
+    fi
   fi
-fi
 
-# ------------------------------------------------------------------------------
-# 4. Configure Helm Repository
-# ------------------------------------------------------------------------------
-log_step "Configuring Chaos Mesh Helm repository..."
+  # ----------------------------------------------------------------------------
+  # 4. Configure Helm Repository
+  # ----------------------------------------------------------------------------
+  log_step "Configuring Chaos Mesh Helm repository..."
+  if [[ "${DRY_RUN}" == "true" ]]; then
+    log_dry "Would execute: helm repo add chaos-mesh https://charts.chaos-mesh.org"
+    log_dry "Would execute: helm repo update chaos-mesh"
+  else
+    helm repo add chaos-mesh https://charts.chaos-mesh.org
+    helm repo update chaos-mesh
+    log_info "Chaos Mesh Helm repository updated."
+  fi
 
-if [[ "${DRY_RUN}" == "true" ]]; then
-  log_dry "Would execute: helm repo add chaos-mesh https://charts.chaos-mesh.org"
-  log_dry "Would execute: helm repo update chaos-mesh"
-else
-  helm repo add chaos-mesh https://charts.chaos-mesh.org
-  helm repo update chaos-mesh
-  log_info "Chaos Mesh Helm repository updated."
-fi
+  # ----------------------------------------------------------------------------
+  # 5. Deploy Chaos Mesh via Helm
+  # ----------------------------------------------------------------------------
+  log_step "Deploying Chaos Mesh (version: ${CHAOS_MESH_VERSION}) to '${CHAOS_NAMESPACE}'..."
 
-# ------------------------------------------------------------------------------
-# 5. Deploy Chaos Mesh via Helm
-# ------------------------------------------------------------------------------
-log_step "Deploying Chaos Mesh (version: ${CHAOS_MESH_VERSION}) to '${CHAOS_NAMESPACE}'..."
+  HELM_DEPLOY_CMD=(
+    helm upgrade --install chaos-mesh chaos-mesh/chaos-mesh
+    --namespace "${CHAOS_NAMESPACE}"
+    --version "${CHAOS_MESH_VERSION}"
+    --set chaosDaemon.runtime=containerd
+    --set "chaosDaemon.socketPath=${CONTAINERD_SOCKET}"
+    --set "controllerManager.nodeSelector.workload=app"
+    --set "dashboard.nodeSelector.workload=app"
+    --set dashboard.service.type=NodePort
+    --set "dashboard.service.nodePort=${DASHBOARD_NODEPORT}"
+  )
 
-HELM_DEPLOY_CMD=(
-  helm upgrade --install chaos-mesh chaos-mesh/chaos-mesh
-  --namespace "${CHAOS_NAMESPACE}"
-  --version "${CHAOS_MESH_VERSION}"
-  --set chaosDaemon.runtime=containerd
-  --set "chaosDaemon.socketPath=${CONTAINERD_SOCKET}"
-  --set "controllerManager.nodeSelector.workload=app"
-  --set "dashboard.nodeSelector.workload=app"
-  --set dashboard.service.type=NodePort
-  --set "dashboard.service.nodePort=${DASHBOARD_NODEPORT}"
-)
+  if [[ "${DRY_RUN}" == "true" ]]; then
+    log_dry "Would execute Helm deployment with parameters:"
+    echo "  ${HELM_DEPLOY_CMD[*]}"
+  else
+    "${HELM_DEPLOY_CMD[@]}"
+    log_info "Chaos Mesh Helm release deployed."
 
-if [[ "${DRY_RUN}" == "true" ]]; then
-  log_dry "Would execute Helm deployment with parameters:"
-  echo "  ${HELM_DEPLOY_CMD[*]}"
-else
-  "${HELM_DEPLOY_CMD[@]}"
-  log_info "Chaos Mesh Helm release deployed."
-
-  log_step "Waiting for Chaos Mesh controller manager readiness..."
-  kubectl rollout status deployment/chaos-controller-manager -n "${CHAOS_NAMESPACE}" --timeout=180s
-  log_info "Chaos Mesh controller manager is operational."
+    log_step "Waiting for Chaos Mesh controller manager readiness..."
+    kubectl rollout status deployment/chaos-controller-manager -n "${CHAOS_NAMESPACE}" --timeout=180s
+    log_info "Chaos Mesh controller manager is operational."
+  fi
 fi
 
 echo ""
