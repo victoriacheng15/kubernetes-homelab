@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: podinfo
+  namespace: apps
+  labels:
+    app.kubernetes.io/name: podinfo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: podinfo
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: podinfo
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/app: "true"
+      containers:
+        - name: podinfo
+          image: ghcr.io/stefanprodan/podinfo:6.17.0
+          ports:
+            - name: http
+              containerPort: 9898
+              protocol: TCP
+            - name: grpc
+              containerPort: 9999
+              protocol: TCP
+          env:
+            - name: PODINFO_UI_COLOR
+              value: "#34577c"
+            - name: PODINFO_UI_MESSAGE
+              value: "Homelab Kubernetes Cluster"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 9898
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 9898
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
