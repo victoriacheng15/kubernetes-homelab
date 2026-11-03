@@ -25,6 +25,7 @@ spec:
                 - argocd
                 - cilium
                 - infrastructure
+                - falco
       validate:
         message: "Privileged containers are not allowed."
         pattern:
