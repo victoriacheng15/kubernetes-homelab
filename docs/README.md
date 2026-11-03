@@ -2,6 +2,8 @@
 
 Technical specifications, design decisions, and operational runbooks for a bare-metal Kubernetes cluster operating across dual-node Proxmox VE hardware and an external Raspberry Pi quorum witness.
 
+For the narrative story behind the architectural choices and operational lessons, read [The Platform Journey](./journey.md).
+
 ---
 
 ## Why This Exists
@@ -9,33 +11,73 @@ Technical specifications, design decisions, and operational runbooks for a bare-
 Built to expand beyond single-machine experiments and disposable cloud setups, evolving the foundations of [observability-hub](https://github.com/victoriacheng15/observability-hub) across distributed physical infrastructure:
 
 * **From Single-Node to Distributed Topology:** Scales the single-machine GitOps and Cilium foundations into a multi-node bare-metal environment, confronting real node failure domains and quorum management.
+* **Three-Tier Platform Lifecycle:** Strict boundary separation across infrastructure provisioning (OpenTofu), host OS baselines (Ansible), and declarative workload delivery (ArgoCD).
 * **Control Plane Isolation:** Centralized control plane with strict `NoSchedule` taints to preserve API stability.
 * **Kernel Datapath & In-Cluster Routing:** Cilium eBPF in isolated VXLAN overlay mode, avoiding host routing table modifications or physical LAN disruption.
+* **Decoupled Ingress Gateway:** Standalone Nginx reverse proxy and Pi-hole DNS sinkhole operating outside Kubernetes to ensure uninterrupted service routing.
 * **Zero-Drift GitOps:** ArgoCD as the authoritative reconciler for all cluster services, observability daemons, and security tools.
 * **Resilience Under Constraints:** Asymmetric physical hardware (Mini PC + Laptop) with external Raspberry Pi Corosync quorum (`corosync-qnetd`) to prevent split-brain states.
 
 ---
 
-## Physical Hardware Baseline
+## Platform Architecture Layers
 
-![Physical Topology](./assets/physical-topology.png)
-
-| Host | Hardware Type | CPU / Threads | Memory | Storage | Primary Cluster Roles |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **`pve-01`** | Mini PC | 8C / 16T | 32 GB | 1 TB NVMe | `k8s-cp-01` (Control Plane), `k8s-telemetry-01`, LXC Utilities |
-| **`pve-02`** | Laptop | 4C / 8T | 8 GB | 256 GB SSD | `k8s-app-01` (Worker), `pihole` (CT 300) |
-| **`rpi-01`** | Raspberry Pi 3B | 4C / 4T (1.2 GHz) | 1 GB | MicroSD | Corosync QNet QDevice (Vote 3), Local Chrony NTP (UTC) |
+![Platform Architecture Layers](./assets/platform-layers.png)
 
 ---
 
-## Architecture Topology
+## Hardware
+
+![Physical Topology](./assets/physical-topology.png)
+
+| | Device | Node Name | Arch | RAM | Role |
+| :---: | :--- | :--- | :--- | :--- | :--- |
+| <img src="./assets/logos/proxmox.svg" alt="Proxmox" width="32"> | Mini PC | `pve-01` | x86_64 | 32 GB | Proxmox host (`k8s-cp-01`, `k8s-telemetry-01`) |
+| <img src="./assets/logos/proxmox.svg" alt="Proxmox" width="32"> | Laptop | `pve-02` | x86_64 | 8 GB | Proxmox host (`k8s-app-01` worker) |
+| <img src="./assets/logos/raspberrypi.svg" alt="Raspberry Pi" width="32"> | Raspberry Pi 3B | `rpi-01` | ARM64 | 1 GB | Corosync QDevice quorum tiebreaker (`corosync-qnetd`) |
+
+---
+
+## K8s Architecture Topology
 
 ![Kubernetes Homelab Architecture](./assets/architecture.png)
 
-### Key Architectural Pillars
+---
 
-* **Control Plane Isolation:** Dedicated control plane VM (`k8s-cp-01`) enforcing `NoSchedule` taints to protect etcd and the Kubernetes API server from resource contention.
-* **Kernel-Level Networking (Cilium eBPF):** Cross-node container traffic encapsulates in standard VXLAN UDP packets on port 8472, bypassing iptables and avoiding route conflicts with the physical home LAN.
-* **Dedicated Observability Node:** `k8s-telemetry-01` hosts Hubble Relay, Hubble UI, and monitoring daemons, keeping `k8s-app-01` dedicated to workloads.
-* **Asymmetric Hardware Resilience:** The Raspberry Pi (`rpi-01`) serves as the Corosync QDevice tiebreaker to provide an odd 3-vote quorum across the two Proxmox hosts (`pve-01` and `pve-02`), preventing split-brain conditions.
-* **Declarative GitOps Reconciliation:** ArgoCD acts as the single source of truth for platform manifests and tenant applications, eliminating manual cluster drift.
+## Tech Stack
+
+### Infrastructure & Gateway
+
+| | Name | Description |
+| :---: | :--- | :--- |
+| <img src="./assets/logos/opentofu.svg" alt="OpenTofu" width="32"> | [OpenTofu](https://opentofu.org/) | Declarative virtual machine and LXC infrastructure provisioning via Proxmox API |
+| <img src="./assets/logos/ansible.svg" alt="Ansible" width="32"> | [Ansible](https://www.ansible.com/) | Agentless OS baseline hardening, kernel tuning, and utility container automation |
+| <img src="./assets/logos/nginx.svg" alt="Nginx" width="32"> | [Nginx](https://nginx.org/) | External reverse proxy gateway for unified internal DNS and NodePort routing |
+| <img src="./assets/logos/pihole.svg" alt="Pi-hole" width="32"> | [Pi-hole](https://pi-hole.net/) | DNS sinkhole providing wildcard resolution (*.homelab.local) for LAN clients |
+
+### Cluster Core & Networking
+
+| | Name | Description |
+| :---: | :--- | :--- |
+| <img src="./assets/logos/kubernetes.svg" alt="Kubernetes" width="32"> | [Kubernetes (k3s)](https://k3s.io/) | Lightweight Kubernetes distribution with embedded etcd |
+| <img src="./assets/logos/cilium.svg" alt="Cilium" width="32"> | [Cilium](https://cilium.io/) | eBPF-based CNI, isolated VXLAN overlay, kube-proxy replacement, Hubble |
+| <img src="./assets/logos/argo.svg" alt="Argo CD" width="32"> | [Argo CD](https://argoproj.github.io/cd/) | GitOps continuous delivery engine syncing manifests directly from Git |
+| <img src="./assets/logos/cert-manager.svg" alt="cert-manager" width="32"> | [cert-manager](https://cert-manager.io/) | Automated TLS certificate management and local CA issuance |
+
+### Observability & Telemetry
+
+| | Name | Description |
+| :---: | :--- | :--- |
+| <img src="./assets/logos/prometheus.svg" alt="Prometheus" width="32"> | [Prometheus](https://prometheus.io/) | Time-series metrics collection and monitoring |
+| <img src="./assets/logos/grafana.svg" alt="Grafana" width="32"> | [Grafana](https://grafana.com/) | Visualization dashboards for metrics, traces, and Hubble flows |
+| <img src="./assets/logos/opentelemetry.svg" alt="OpenTelemetry" width="32"> | [OpenTelemetry](https://opentelemetry.io/) | Distributed tracing and OTLP telemetry collection |
+| <img src="./assets/logos/go.svg" alt="Podinfo" width="32"> | [Podinfo](https://github.com/stefanprodan/podinfo) | Cloud-native microservice for GitOps validation, metrics, and traffic shifting |
+
+### Security & Chaos Engineering
+
+| | Name | Description |
+| :---: | :--- | :--- |
+| <img src="./assets/logos/falco.svg" alt="Falco" width="32"> | [Falco](https://falco.org/) | Kernel runtime security daemon detecting unauthorized syscalls |
+| <img src="./assets/logos/kyverno.svg" alt="Kyverno" width="32"> | [Kyverno](https://kyverno.io/) | Kubernetes-native admission controller and policy enforcement |
+| <img src="./assets/logos/chaos-mesh.svg" alt="Chaos Mesh" width="32"> | [Chaos Mesh](https://chaos-mesh.org/) | Chaos engineering platform for controlled fault injection |
+| <img src="./assets/logos/owasp.svg" alt="OWASP Juice Shop" width="32"> | [OWASP Juice Shop](https://owasp.org/www-project-juice-shop/) | Vulnerable web application for runtime security drills and policy hardening |
