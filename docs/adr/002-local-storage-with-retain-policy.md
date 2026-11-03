@@ -1,6 +1,6 @@
 # ADR 002: Local Storage with Retain Policy
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-11
 - **Author:** Victoria Cheng
 
@@ -20,16 +20,19 @@ How should persistent storage be architected to provide high I/O performance and
 
 Deploy the `local-path` provisioner with an explicit `reclaimPolicy: Retain`:
 
-1. **Dynamic Local Path Provisioning:**
-   - Utilize `local-path-provisioner` to map Kubernetes PersistentVolumes directly to host directories (e.g., `/opt/local-path-provisioner`).
-   - Workloads write directly to host storage, bypassing network-based storage abstraction layers.
+### Dynamic Local Path Provisioning
 
-2. **Strict Reclaim Retention Policy:**
-   - Configure the StorageClass with `reclaimPolicy: Retain`.
-   - Prevent automatic data destruction when PVCs, namespaces, or Helm charts are deleted or upgraded.
+- Utilize `local-path-provisioner` to map Kubernetes PersistentVolumes directly to host directories (e.g., `/opt/local-path-provisioner`).
+- Workloads write directly to host storage, bypassing network-based storage abstraction layers.
 
-3. **Explicit Rejection of Distributed Storage:**
-   - Formally reject Ceph, Longhorn, and GlusterFS for this two-node topology to eliminate quorum-driven storage lockups.
+### Strict Reclaim Retention Policy
+
+- Configure the StorageClass with `reclaimPolicy: Retain`.
+- Prevent automatic data destruction when PVCs, namespaces, or Helm charts are deleted or upgraded.
+
+### Explicit Rejection of Distributed Storage
+
+- Formally reject Ceph, Longhorn, and GlusterFS for this two-node topology to eliminate quorum-driven storage lockups.
 
 ## Consequences
 
@@ -48,6 +51,6 @@ Deploy the `local-path` provisioner with an explicit `reclaimPolicy: Retain`:
 
 ## Verification
 
-- [ ] Deploy a test pod with a PersistentVolumeClaim using the `local-path` StorageClass and verify it provisions a directory on the host filesystem.
-- [ ] Delete the PersistentVolumeClaim and verify that the underlying directory on the host disk remains intact with status `Released`.
-- [ ] Verify StorageClass definition specifies `reclaimPolicy: Retain`.
+- [x] Deploy a test pod with a PersistentVolumeClaim using the `local-path` StorageClass and verify it provisions a directory on the host filesystem.
+- [x] Delete the PersistentVolumeClaim and verify that the underlying directory on the host disk remains intact with status `Released`.
+- [x] Verify StorageClass definition specifies `reclaimPolicy: Retain`.

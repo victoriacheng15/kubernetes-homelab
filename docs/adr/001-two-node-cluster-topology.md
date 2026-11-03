@@ -18,17 +18,20 @@ How should the physical node layout, control plane placement, and quorum tiebrea
 
 Adopt an asymmetric, segregated two-node physical cluster topology with an external low-power quorum tiebreaker:
 
-1. **Centralized Single Control Plane (`pve-01`):**
-   - Run k3s with embedded etcd on a dedicated control plane VM (`k8s-cp-01`) hosted on `pve-01`.
-   - Avoid two-node multi-master etcd clustering, which is prone to split-brain locks.
+### Centralized Single Control Plane (`pve-01`)
 
-2. **Workload and Blast Radius Segregation:**
-   - Host cluster-critical infrastructure on `pve-01`: control plane (`k8s-cp-01`) and continuous delivery/telemetry (`k8s-telemetry-01` running ArgoCD, OpenTelemetry Collector, Prometheus, Grafana, and Hubble).
-   - Confine experimental workloads to `pve-02`: application node (`k8s-app-01` running Go OTel application, OWASP Juice Shop, Falco, and Chaos Mesh fault injection).
+- Run k3s with embedded etcd on a dedicated control plane VM (`k8s-cp-01`) hosted on `pve-01`.
+- Avoid two-node multi-master etcd clustering, which is prone to split-brain locks.
 
-3. **External Proxmox Quorum Tiebreaker (`rpi-01`):**
-   - Deploy `corosync-qnetd` on a bare-metal Raspberry Pi (`rpi-01`) providing a 3rd quorum vote to Proxmox VE.
-   - Prevents VM cluster fencing lockouts if one physical Proxmox host reboots.
+### Workload and Blast Radius Segregation
+
+- Host cluster-critical infrastructure on `pve-01`: control plane (`k8s-cp-01`) and continuous delivery/telemetry (`k8s-telemetry-01` running ArgoCD, OpenTelemetry Collector, Prometheus, Grafana, and Hubble).
+- Confine experimental workloads to `pve-02`: application node (`k8s-app-01` running Go OTel application, OWASP Juice Shop, Falco, and Chaos Mesh fault injection).
+
+### External Proxmox Quorum Tiebreaker (`rpi-01`)
+
+- Deploy `corosync-qnetd` on a bare-metal Raspberry Pi (`rpi-01`) providing a 3rd quorum vote to Proxmox VE.
+- Prevents VM cluster fencing lockouts if one physical Proxmox host reboots.
 
 ## Consequences
 

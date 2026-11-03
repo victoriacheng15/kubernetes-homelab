@@ -8,8 +8,8 @@ repo_name = "victoriacheng15/kubernetes-homelab"
 
 nav = [
     { "Overview" = "README.md" },
+    { "The Journey" = "journey.md" },
     { "Provisioning" = "provisioning.md" },
-    { "Observability & Security" = "platform.md" },
     { "ADRs" = "adr/README.md" },
     { "Engineering Log" = "engineering-log.md" },
 ]
