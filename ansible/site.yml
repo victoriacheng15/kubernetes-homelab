@@ -1,0 +1,13 @@
+---
+# ==============================================================================
+# Master Orchestration Playbook: site.yml
+# Purpose: Orchestrates the full homelab reconstruction pipeline in sequence.
+# Usage: ansible-playbook -i ansible/inventory.ini ansible/site.yml
+# ==============================================================================
+
+- import_playbook: playbooks/01-setup-vms.yml
+- import_playbook: playbooks/02-setup-pihole.yml
+- import_playbook: playbooks/03-setup-tailscale.yml
+- import_playbook: playbooks/04-bootstrap-cluster.yml
+- import_playbook: playbooks/05-setup-cluster-services.yml
+- import_playbook: playbooks/06-setup-nginx.yml
