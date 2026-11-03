@@ -143,7 +143,8 @@ CILIUM_INSTALL_CMD=(
 )
 
 if [[ "${DRY_RUN}" == "true" ]]; then
-  log_dry "Would execute Cilium deployment with parameters:"
+  log_dry "Would check if Cilium is already installed (via cilium status)"
+  log_dry "If not installed, would execute Cilium deployment with parameters:"
   echo "  cilium install \\"
   echo "    --version \"${CILIUM_VERSION}\" \\"
   echo "    --set \"ipam.operator.clusterPoolIPv4PodCIDRList={${POD_CIDR}}\" \\"
@@ -164,12 +165,16 @@ if [[ "${DRY_RUN}" == "true" ]]; then
   echo "    --set hubble.ui.service.type=NodePort \\"
   echo "    --set hubble.ui.service.nodePort=31235"
 else
-  "${CILIUM_INSTALL_CMD[@]}"
-  log_info "Cilium manifests applied to kube-system namespace."
+  if cilium status >/dev/null 2>&1; then
+    log_info "Cilium is already installed and operational in kube-system. Skipping installation."
+  else
+    "${CILIUM_INSTALL_CMD[@]}"
+    log_info "Cilium manifests applied to kube-system namespace."
 
-  log_step "Waiting for Cilium daemonset and Hubble pods to become ready..."
-  cilium status --wait
-  log_info "Cilium CNI is fully operational."
+    log_step "Waiting for Cilium daemonset and Hubble pods to become ready..."
+    cilium status --wait
+    log_info "Cilium CNI is fully operational."
+  fi
 fi
 
 echo ""
