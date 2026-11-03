@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: juice-shop
+  namespace: apps
+  labels:
+    app.kubernetes.io/name: juice-shop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: juice-shop
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: juice-shop
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/app: "true"
+      containers:
+        - name: juice-shop
+          image: bkimminich/juice-shop:v20.3.0
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /rest/admin/application-version
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /rest/admin/application-version
+              port: 3000
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: podinfo
+  namespace: apps
+  labels:
+    app.kubernetes.io/name: podinfo
+spec:
+  type: NodePort
+  ports:
+    - name: http
+      port: 9898
+      targetPort: 9898
+      nodePort: 30098
+      protocol: TCP
+    - name: grpc
+      port: 9999
+      targetPort: 9999
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: podinfo
