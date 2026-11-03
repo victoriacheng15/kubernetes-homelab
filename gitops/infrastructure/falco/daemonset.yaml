@@ -37,14 +37,9 @@ metadata:
   name: falco-config
   namespace: falco
 data:
-  falco.yaml: |
-    rules_files:
-      - /etc/falco/falco_rules.yaml
-      - /etc/falco/falco_rules.local.yaml
-      - /etc/falco/rules.d
+  homelab.yaml: |
     engine:
       kind: modern_ebpf
-    load_plugins: []
     stdout_output:
       enabled: true
     priority: notice
@@ -92,9 +87,9 @@ spec:
           args:
             - /usr/bin/falco
           volumeMounts:
-            - mountPath: /etc/falco/falco.yaml
+            - mountPath: /etc/falco/config.d/homelab.yaml
               name: falco-config
-              subPath: falco.yaml
+              subPath: homelab.yaml
             - mountPath: /host/proc
               name: proc-fs
               readOnly: true
