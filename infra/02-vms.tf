@@ -1,70 +1,47 @@
 # ==============================================================================
-# pve-01 (Mini PC)
-# - k8s-cp-01 (VM 100): Control Plane (API Server, embedded etcd)
-# - k8s-telemetry-01 (VM 101): Observability & GitOps
-#
-# NOTE: Nodes currently use dynamic DHCP ("dhcp"). For deterministic static addressing
-# during future cluster rebuilds, switch "dhcp" to assigned static CIDRs (e.g. "10.0.0.208/24"
-# with gateway = "10.0.0.1"), allowing OpenTofu to manage and output node IPs directly.
+# Kubernetes Cluster Virtual Machines (bpg/proxmox)
 # ==============================================================================
 
-resource "proxmox_virtual_environment_vm" "k8s_cp_01" {
-  node_name   = "pve-01"
-  vm_id       = 100
-  name        = "k8s-cp-01"
-  description = "Kubernetes Control Plane Node (k3s server, embedded etcd)"
-  tags        = ["k8s", "control-plane"]
-
-  clone {
-    vm_id     = var.template_vm_id
-    node_name = "pve-01"
-  }
-
-  initialization {
-    ip_config {
-      ipv4 {
-        address = "dhcp"
-      }
+locals {
+  vms = {
+    k8s-cp-01 = {
+      node_name   = "pve-01"
+      vm_id       = 100
+      description = "Kubernetes Control Plane Node (k3s server, embedded etcd)"
+      tags        = ["k8s", "control-plane"]
+      memory      = 4096
+      disk_size   = 50
     }
-
-    user_account {
-      username = "ubuntu"
-      keys     = [var.ssh_public_key]
+    k8s-telemetry-01 = {
+      node_name   = "pve-01"
+      vm_id       = 101
+      description = "Kubernetes Observability & GitOps Node"
+      tags        = ["k8s", "telemetry"]
+      memory      = 8192
+      disk_size   = 100
+    }
+    k8s-app-01 = {
+      node_name   = "pve-02"
+      vm_id       = 200
+      description = "Kubernetes General Application Node"
+      tags        = ["k8s", "app"]
+      memory      = 6144
+      disk_size   = 50
     }
   }
-
-  cpu {
-    cores = 2
-    type  = "host"
-  }
-
-  memory {
-    dedicated = 4096
-  }
-
-  network_device {
-    bridge = "vmbr0"
-    model  = "virtio"
-  }
-
-  disk {
-    datastore_id = "local-lvm"
-    size         = 50
-    interface    = "scsi0"
-    discard      = "on"
-    ssd          = true
-    iothread     = true
-  }
-
-  scsi_hardware = "virtio-scsi-single"
 }
 
-resource "proxmox_virtual_environment_vm" "k8s_telemetry_01" {
-  node_name   = "pve-01"
-  vm_id       = 101
-  name        = "k8s-telemetry-01"
-  description = "Kubernetes Observability & GitOps Node"
-  tags        = ["k8s", "telemetry"]
+resource "proxmox_virtual_environment_vm" "vms" {
+  for_each    = local.vms
+  node_name   = each.value.node_name
+  vm_id       = each.value.vm_id
+  name        = each.key
+  description = each.value.description
+  tags        = each.value.tags
+
+  agent {
+    enabled = true
+  }
 
   clone {
     vm_id     = var.template_vm_id
@@ -80,17 +57,17 @@ resource "proxmox_virtual_environment_vm" "k8s_telemetry_01" {
 
     user_account {
       username = "ubuntu"
-      keys     = [var.ssh_public_key]
+      keys     = [var.admin_ssh_public_key, var.ansible_ssh_public_key]
     }
   }
 
   cpu {
-    cores = 2
+    cores = try(each.value.cores, 2)
     type  = "host"
   }
 
   memory {
-    dedicated = 8192
+    dedicated = each.value.memory
   }
 
   network_device {
@@ -99,64 +76,8 @@ resource "proxmox_virtual_environment_vm" "k8s_telemetry_01" {
   }
 
   disk {
-    datastore_id = "local-lvm"
-    size         = 100
-    interface    = "scsi0"
-    discard      = "on"
-    ssd          = true
-    iothread     = true
-  }
-
-  scsi_hardware = "virtio-scsi-single"
-}
-
-# ==============================================================================
-# pve-02 (Laptop)
-# - k8s-app-01 (VM 200): General Applications
-# ==============================================================================
-
-resource "proxmox_virtual_environment_vm" "k8s_app_01" {
-  node_name   = "pve-02"
-  vm_id       = 200
-  name        = "k8s-app-01"
-  description = "Kubernetes General Application Node"
-  tags        = ["k8s", "app"]
-
-  clone {
-    vm_id     = var.template_vm_id
-    node_name = "pve-01"
-  }
-
-  initialization {
-    ip_config {
-      ipv4 {
-        address = "dhcp"
-      }
-    }
-
-    user_account {
-      username = "ubuntu"
-      keys     = [var.ssh_public_key]
-    }
-  }
-
-  cpu {
-    cores = 2
-    type  = "host"
-  }
-
-  memory {
-    dedicated = 6144
-  }
-
-  network_device {
-    bridge = "vmbr0"
-    model  = "virtio"
-  }
-
-  disk {
-    datastore_id = "local-lvm"
-    size         = 50
+    datastore_id = try(each.value.datastore_id, "local-lvm")
+    size         = each.value.disk_size
     interface    = "scsi0"
     discard      = "on"
     ssd          = true

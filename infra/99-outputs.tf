@@ -13,8 +13,7 @@ output "container_ips" {
 output "vm_ips" {
   description = "IPv4 addresses for Kubernetes virtual machines"
   value = {
-    "k8s-cp-01"        = try(proxmox_virtual_environment_vm.k8s_cp_01.ipv4_addresses[0][0], "dhcp")
-    "k8s-telemetry-01" = try(proxmox_virtual_environment_vm.k8s_telemetry_01.ipv4_addresses[0][0], "dhcp")
-    "k8s-app-01"       = try(proxmox_virtual_environment_vm.k8s_app_01.ipv4_addresses[0][0], "dhcp")
+    for name, vm in proxmox_virtual_environment_vm.vms :
+    name => try([for ip in flatten(vm.ipv4_addresses) : ip if !startswith(ip, "127.")][0], "dhcp")
   }
 }

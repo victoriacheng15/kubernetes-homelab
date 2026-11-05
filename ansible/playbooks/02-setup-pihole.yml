@@ -8,6 +8,8 @@
 - name: Setup Pi-hole DNS Sinkhole and Homelab Domain Resolver
   hosts: dns
   become: true
+  environment:
+    PATH: "/usr/local/sbin:/usr/local/bin:{{ ansible_env.PATH }}"
   vars:
     nginx_ip: "{{ hostvars['nginx']['ansible_host'] }}"
     pihole_admin_password: "{{ vault_pihole_admin_password | default('admin123') }}"
@@ -62,6 +64,23 @@
         PIHOLE_SKIP_OS_CHECK: "true"
       args:
         creates: /usr/local/bin/pihole
+
+    - name: Ensure /usr/local/bin is in system PATH (/etc/environment)
+      lineinfile:
+        path: /etc/environment
+        regexp: '^PATH='
+        line: 'PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"'
+        state: present
+        create: true
+        mode: "0644"
+
+    - name: Ensure /usr/local/bin is in root .bashrc
+      lineinfile:
+        path: /root/.bashrc
+        line: 'export PATH="/usr/local/sbin:/usr/local/bin:$PATH"'
+        state: present
+        create: true
+        mode: "0644"
 
     - name: Set Pi-hole admin console password
       command: pihole -a -p "{{ pihole_admin_password }}"

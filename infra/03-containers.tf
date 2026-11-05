@@ -4,13 +4,12 @@
 
 locals {
   containers = {
-    pihole = {
-      node_name    = "pve-02"
+    ansible = {
+      node_name    = "pve-01"
       vm_id        = 300
-      description  = "Local DNS Server and Ad-blocking Sinkhole"
-      tags         = ["dns", "utility"]
-      ipv4_address = var.pihole_ipv4_address
-      ipv4_gateway = var.pihole_ipv4_gateway
+      description  = "Ansible Automation Control Node"
+      tags         = ["automation", "utility"]
+      ipv4_address = "dhcp"
     }
     tailscale = {
       node_name    = "pve-01"
@@ -26,12 +25,13 @@ locals {
       tags         = ["proxy", "utility"]
       ipv4_address = "dhcp"
     }
-    ansible = {
+    pihole = {
       node_name    = "pve-01"
       vm_id        = 303
-      description  = "Ansible Automation Control Node"
-      tags         = ["automation", "utility"]
-      ipv4_address = "dhcp"
+      description  = "Local DNS Server and Ad-blocking Sinkhole"
+      tags         = ["dns", "utility"]
+      ipv4_address = var.pihole_ipv4_address
+      ipv4_gateway = var.pihole_ipv4_gateway
     }
   }
 }
@@ -57,6 +57,10 @@ resource "proxmox_virtual_environment_container" "containers" {
         address = each.value.ipv4_address
         gateway = try(each.value.ipv4_gateway, null)
       }
+    }
+
+    user_account {
+      keys = [trimspace(var.ansible_ssh_public_key)]
     }
   }
 
