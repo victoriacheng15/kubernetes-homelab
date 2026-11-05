@@ -43,6 +43,23 @@
           ../../bootstrap/02-k3s-agent.sh
           --server-url "https://{{ hostvars['k8s-cp-01']['ansible_host'] }}:6443"
           --token "{{ hostvars['k8s-cp-01']['k3s_token'] }}"
-          --node-role "{{ node_role }}"
       args:
         creates: /etc/rancher/k3s/config.yaml
+
+# ------------------------------------------------------------------------------
+# Play 3: Apply Worker Node Roles from Control Plane
+# ------------------------------------------------------------------------------
+- name: Assign Worker Node Roles and Labels
+  hosts: control_plane
+  become: true
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  tasks:
+    - name: Label worker nodes with dedicated role and workload profile
+      ansible.builtin.command: >-
+        kubectl label node {{ item }}
+        node-role.kubernetes.io/{{ hostvars[item]['node_role'] }}=true
+        workload={{ hostvars[item]['node_role'] }}
+        --overwrite
+      loop: "{{ groups['workers'] }}"
+      changed_when: true

@@ -33,8 +33,13 @@ variable "template_vm_id" {
   default     = 9000
 }
 
-variable "ssh_public_key" {
-  description = "Public SSH key injected into the default ubuntu user"
+variable "admin_ssh_public_key" {
+  description = "Public SSH key for human admin access (k8s-homelab-admin)"
+  type        = string
+}
+
+variable "ansible_ssh_public_key" {
+  description = "Public SSH key for Ansible controller CT 300 (ansible)"
   type        = string
 }
 
