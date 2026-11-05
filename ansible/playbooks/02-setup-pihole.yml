@@ -1,7 +1,7 @@
 ---
 # ==============================================================================
 # Playbook: 02-setup-pihole.yml
-# Purpose: Configures Pi-hole DNS sinkhole on CT 300 with homelab wildcard routing.
+# Purpose: Configures Pi-hole DNS sinkhole on pihole container with homelab wildcard routing.
 # Target: Runs against the [dns] inventory group.
 # ==============================================================================
 
@@ -9,7 +9,7 @@
   hosts: dns
   become: true
   environment:
-    PATH: "/usr/local/sbin:/usr/local/bin:{{ ansible_env.PATH }}"
+    PATH: "/usr/local/sbin:/usr/local/bin:{{ ansible_facts['env']['PATH'] }}"
   vars:
     nginx_ip: "{{ hostvars['nginx']['ansible_host'] }}"
     pihole_admin_password: "{{ vault_pihole_admin_password | default('admin123') }}"

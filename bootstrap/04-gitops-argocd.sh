@@ -141,6 +141,7 @@ ARGOCD_WORKLOADS=(
   "deployment/argocd-repo-server"
   "deployment/argocd-applicationset-controller"
   "deployment/argocd-notifications-controller"
+  "deployment/argocd-dex-server"
   "deployment/argocd-redis"
   "statefulset/argocd-application-controller"
 )
