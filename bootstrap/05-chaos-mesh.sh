@@ -164,6 +164,7 @@ else
     --version "${CHAOS_MESH_VERSION}"
     --set chaosDaemon.runtime=containerd
     --set "chaosDaemon.socketPath=${CONTAINERD_SOCKET}"
+    --set "chaosDaemon.nodeSelector.workload=app"
     --set "controllerManager.nodeSelector.workload=app"
     --set "dashboard.nodeSelector.workload=app"
     --set dashboard.service.type=NodePort

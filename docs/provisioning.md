@@ -6,9 +6,11 @@ This guide covers the three sequential provisioning layers that build the homela
 
 ![Platform Architecture Layers](assets/platform-layers.png)
 
-- **Layer 1: Infrastructure Provisioning:** Uses OpenTofu and Proxmox VE to configure physical hypervisor clustering, odd 3-vote quorum tiebreaking, authoritative local time synchronization via Chrony, base OS templates, and automated VM and LXC creation.
-- **Layer 2: Node OS Baseline Provisioning:** Uses Ansible from the dedicated controller container (`CT 303`) to tune kernel modules, swap, sysctl networking parameters, and core utilities across all virtual machines.
-- **Layer 3: Declarative GitOps & Cluster Provisioning:** Uses k3s and ArgoCD to bootstrap the lightweight Kubernetes control plane, deploy the Cilium eBPF network fabric, and initialize the App-of-Apps continuous delivery engine.
+| Layer | Primary Tooling | Responsibilities & Scope |
+| :--- | :--- | :--- |
+| **Layer 1: Infrastructure** | OpenTofu & Proxmox VE | Physical hypervisor clustering, Corosync QDevice quorum tiebreaker, Chrony NTP synchronization, Ubuntu cloud-init templates, and automated VM/LXC provisioning |
+| **Layer 2: Node OS Baseline** | Ansible (`CT 303`) | Kernel modules (`overlay`, `br_netfilter`), swap deactivation, sysctl parameters, Pi-hole DNS sinkhole, and Tailscale VPN gateway |
+| **Layer 3: Declarative GitOps** | k3s & ArgoCD | k3s control plane, Cilium eBPF network fabric, ArgoCD App-of-Apps sync waves, and Nginx reverse proxy dashboard routing |
 
 ---
 
@@ -231,20 +233,20 @@ By orchestrating the underlying bootstrap scripts inside numbered Ansible playbo
 
 ### Preflight Hardware & Network Audit
 
-Before initializing the cluster, execute `bootstrap/00-preflight.sh` as a standalone read-only sanity check. This audits target node IPs, CPU virtualization flags, kernel eBPF support, memory allocations, and open ports on target Kubernetes VMs (`k8s-cp-01`, `k8s-telemetry-01`, `k8s-app-01`).
+Before initializing the cluster, execute `bootstrap/00-preflight.sh` as an optional read-only sanity check. This audits target node IPs, CPU virtualization flags, kernel eBPF support, memory allocations, and open ports on target Kubernetes VMs (`k8s-cp-01`, `k8s-telemetry-01`, `k8s-app-01`).
 
-Execute from the controller container (`CT 303`) or your workstation over SSH (eliminating the need to clone the repository onto target VMs):
+Execute an on-demand audit across all virtual machines simultaneously using the Ansible ad-hoc CLI:
 
 ```bash
-# From CT 303 or workstation against any target VM:
-ssh ubuntu@<TARGET_NODE_IP> 'bash -s' < bootstrap/00-preflight.sh
+# From ansible/ directory against all cluster nodes in parallel:
+ansible -i inventory.ini nodes -m ansible.builtin.script -a "../bootstrap/00-preflight.sh"
 ```
 
-Alternatively, if logged directly into a target node:
+To run against a single specific node (for example, `k8s-cp-01`):
 
 ```bash
-# Directly on target node (k8s-cp-01, k8s-telemetry-01, k8s-app-01):
-./bootstrap/00-preflight.sh
+# From ansible/ directory against a single node:
+ansible -i inventory.ini k8s-cp-01 -m ansible.builtin.script -a "../bootstrap/00-preflight.sh"
 ```
 
 ### Cluster Nodes Bootstrap (`04-bootstrap-cluster.yml`)
@@ -259,12 +261,12 @@ ansible-playbook -i inventory.ini playbooks/04-bootstrap-cluster.yml
 This playbook runs across two sequential plays:
 
 - **Control Plane Initialization (`k8s-cp-01`):**
-  - Executes `bootstrap/01-k3s-server.sh` via `ansible.builtin.script` with Flannel and Traefik disabled.
-  - Captures the cluster join token from `/var/lib/rancher/k3s/server/node-token` and registers it in memory.
+    - Executes `bootstrap/01-k3s-server.sh` via `ansible.builtin.script` with Flannel and Traefik disabled.
+    - Captures the cluster join token from `/var/lib/rancher/k3s/server/node-token` and registers it in memory.
 
 - **Worker Node Joining (`k8s-telemetry-01`, `k8s-app-01`):**
-  - Executes `bootstrap/02-k3s-agent.sh` on worker targets, automatically injecting the join endpoint, token, and node workload roles (`workload=telemetry`, `workload=app`).
-  - Labels node roles formally from the control plane in compliance with the Kubernetes NodeRestriction admission controller.
+    - Executes `bootstrap/02-k3s-agent.sh` on worker targets, automatically injecting the join endpoint, token, and node workload roles (`workload=telemetry`, `workload=app`).
+    - Labels node roles formally from the control plane in compliance with the Kubernetes NodeRestriction admission controller.
 
 Verify node status from the control plane:
 
@@ -284,20 +286,20 @@ ansible-playbook -i inventory.ini playbooks/05-setup-cluster-services.yml
 This playbook injects `KUBECONFIG: /etc/rancher/k3s/k3s.yaml` and deploys three platform tiers:
 
 - **Cilium eBPF CNI & Hubble Observability (`bootstrap/03-cni-cilium.sh`):**
-  - Deploys Cilium in VXLAN overlay mode (`10.244.0.0/16` Pod CIDR).
-  - Replaces `kube-proxy` with socket-based in-kernel load balancing.
-  - Enables Hubble relay and Hubble UI (NodePort `31235`).
-  - Includes status verification checks to skip installation safely if already operational.
+    - Deploys Cilium in VXLAN overlay mode (`10.244.0.0/16` Pod CIDR).
+    - Replaces `kube-proxy` with socket-based in-kernel load balancing.
+    - Enables Hubble relay and Hubble UI (NodePort `31235`).
+    - Includes status verification checks to skip installation safely if already operational.
 
 - **ArgoCD GitOps Continuous Delivery Engine (`bootstrap/04-gitops-argocd.sh`):**
-  - Installs upstream ArgoCD manifests into the `argocd` namespace.
-  - Exposes `argocd-server` via NodePort (`HTTP 30080`, `HTTPS 30443`).
-  - Waits for controller readiness rollouts.
+    - Installs upstream ArgoCD manifests into the `argocd` namespace.
+    - Exposes `argocd-server` via NodePort (`HTTP 30080`, `HTTPS 30443`).
+    - Waits for controller readiness rollouts.
 
 - **Chaos Mesh Resilience Platform (`bootstrap/05-chaos-mesh.sh`):**
-  - Configures the Chaos Mesh Helm repository.
-  - Deploys Chaos Mesh pinned to `k8s-app-01` (`workload=app`) using the k3s containerd socket (`/run/k3s/containerd/containerd.sock`).
-  - Exposes the Chaos Mesh dashboard via NodePort (`31333`).
+    - Configures the Chaos Mesh Helm repository.
+    - Deploys Chaos Mesh pinned to `k8s-app-01` (`workload=app`) using the k3s containerd socket (`/run/k3s/containerd/containerd.sock`).
+    - Exposes the Chaos Mesh dashboard via NodePort (`31333`).
 
 Key parameters configured across cluster services:
 

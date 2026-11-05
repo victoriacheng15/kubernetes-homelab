@@ -102,7 +102,7 @@ fi
 # 2. Check Existing Installation or Deploy ArgoCD
 # ------------------------------------------------------------------------------
 if [[ "${DRY_RUN}" == "false" ]] && kubectl get deployment argocd-server -n "${ARGOCD_NAMESPACE}" >/dev/null 2>&1 && kubectl rollout status deployment/argocd-server -n "${ARGOCD_NAMESPACE}" --timeout=5s >/dev/null 2>&1; then
-  log_info "ArgoCD is already installed and operational in '${ARGOCD_NAMESPACE}'. Skipping installation."
+  log_info "ArgoCD is already installed in '${ARGOCD_NAMESPACE}'. Skipping manifest application."
 else
   log_step "Ensuring '${ARGOCD_NAMESPACE}' namespace exists..."
   if [[ "${DRY_RUN}" == "true" ]]; then
@@ -128,31 +128,57 @@ else
     eval "${APPLY_CMD}"
     log_info "ArgoCD manifests successfully applied."
   fi
+fi
 
-  # ----------------------------------------------------------------------------
-  # 4. Expose ArgoCD Server via NodePort
-  # ----------------------------------------------------------------------------
-  log_step "Exposing argocd-server via NodePort (HTTP: 30080, HTTPS: 30443)..."
-  PATCH_PAYLOAD='{"spec": {"type": "NodePort", "ports": [{"name": "http", "port": 80, "targetPort": 8080, "nodePort": 30080}, {"name": "https", "port": 443, "targetPort": 8080, "nodePort": 30443}]}}'
+# ------------------------------------------------------------------------------
+# 4. Pin ArgoCD Workloads to Telemetry Node
+# ------------------------------------------------------------------------------
+log_step "Pinning ArgoCD workloads to telemetry node (node-role.kubernetes.io/telemetry=true)..."
+NODE_SELECTOR_PATCH='{"spec":{"template":{"spec":{"nodeSelector":{"node-role.kubernetes.io/telemetry":"true"}}}}}'
 
+ARGOCD_WORKLOADS=(
+  "deployment/argocd-server"
+  "deployment/argocd-repo-server"
+  "deployment/argocd-applicationset-controller"
+  "deployment/argocd-notifications-controller"
+  "deployment/argocd-redis"
+  "statefulset/argocd-application-controller"
+)
+
+for workload in "${ARGOCD_WORKLOADS[@]}"; do
   if [[ "${DRY_RUN}" == "true" ]]; then
-    log_dry "Would execute: kubectl patch svc argocd-server -n ${ARGOCD_NAMESPACE} -p '${PATCH_PAYLOAD}'"
+    log_dry "Would execute: kubectl patch ${workload} -n ${ARGOCD_NAMESPACE} -p '${NODE_SELECTOR_PATCH}'"
   else
-    kubectl patch svc argocd-server -n "${ARGOCD_NAMESPACE}" -p "${PATCH_PAYLOAD}"
-    log_info "argocd-server patched to NodePort."
+    if kubectl get "${workload}" -n "${ARGOCD_NAMESPACE}" >/dev/null 2>&1; then
+      kubectl patch "${workload}" -n "${ARGOCD_NAMESPACE}" -p "${NODE_SELECTOR_PATCH}" >/dev/null
+      log_info "Patched ${workload} to run on telemetry node."
+    fi
   fi
+done
 
-  # ----------------------------------------------------------------------------
-  # 5. Wait for Deployment Rollout Readiness
-  # ----------------------------------------------------------------------------
-  log_step "Waiting for argocd-server deployment readiness..."
+# ------------------------------------------------------------------------------
+# 5. Expose ArgoCD Server via NodePort
+# ------------------------------------------------------------------------------
+log_step "Exposing argocd-server via NodePort (HTTP: 30080, HTTPS: 30443)..."
+PATCH_PAYLOAD='{"spec": {"type": "NodePort", "ports": [{"name": "http", "port": 80, "targetPort": 8080, "nodePort": 30080}, {"name": "https", "port": 443, "targetPort": 8080, "nodePort": 30443}]}}'
 
-  if [[ "${DRY_RUN}" == "true" ]]; then
-    log_dry "Would execute: kubectl rollout status deployment/argocd-server -n ${ARGOCD_NAMESPACE} --timeout=180s"
-  else
-    kubectl rollout status deployment/argocd-server -n "${ARGOCD_NAMESPACE}" --timeout=180s
-    log_info "argocd-server is operational."
-  fi
+if [[ "${DRY_RUN}" == "true" ]]; then
+  log_dry "Would execute: kubectl patch svc argocd-server -n ${ARGOCD_NAMESPACE} -p '${PATCH_PAYLOAD}'"
+else
+  kubectl patch svc argocd-server -n "${ARGOCD_NAMESPACE}" -p "${PATCH_PAYLOAD}"
+  log_info "argocd-server patched to NodePort."
+fi
+
+# ------------------------------------------------------------------------------
+# 6. Wait for Deployment Rollout Readiness
+# ------------------------------------------------------------------------------
+log_step "Waiting for argocd-server deployment readiness..."
+
+if [[ "${DRY_RUN}" == "true" ]]; then
+  log_dry "Would execute: kubectl rollout status deployment/argocd-server -n ${ARGOCD_NAMESPACE} --timeout=180s"
+else
+  kubectl rollout status deployment/argocd-server -n "${ARGOCD_NAMESPACE}" --timeout=180s
+  log_info "argocd-server is operational."
 fi
 
 echo ""
