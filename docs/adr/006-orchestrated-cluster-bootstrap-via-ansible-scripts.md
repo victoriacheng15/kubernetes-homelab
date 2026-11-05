@@ -49,8 +49,8 @@ A root orchestrator playbook (`ansible/site.yml`) imports all six numbered stage
 ### Dual-Key SSH Architecture
 
 - Establish two distinct Ed25519 SSH keys:
-  - Administrator Key (`k8s-homelab-admin`): For interactive operator access and direct debugging.
-  - Automation Key (`ansible`): Stored exclusively on `CT 303` for automated playbook runs.
+    - Administrator Key (`k8s-homelab-admin`): For interactive operator access and direct debugging.
+    - Automation Key (`ansible`): Stored exclusively on `CT 303` for automated playbook runs.
 - OpenTofu Cloud-Init and LXC user account provisioning inject both public keys on first boot.
 
 ## Consequences
