@@ -34,6 +34,12 @@ A retrospective narrative on environmental constraints, operational toil, and ev
   ┌────────────────────────────────────────────────────────┐
   │                 ADR Codification                       │
   │     Formalized architectural boundaries (ADR 001-005)  │
+  └──────────────────────────┬─────────────────────────────┘
+                             │
+                             ▼  Mastery: Zero-touch disaster recovery
+  ┌────────────────────────────────────────────────────────┐
+  │              Act 6: The Phoenix Rebuild                │
+  │     Zero-touch orchestration via site.yml (ADR 006)    │
   └────────────────────────────────────────────────────────┘
 ```
 
@@ -102,14 +108,14 @@ The typical Kubernetes solution is an in-cluster Ingress Controller coupled with
 * **Resource Preservation:** Running ingress pods and daemonsets consumes memory on a dual-node cluster that is better reserved for core workloads.
 * **The Out-of-Cluster Dilemma:** Independent services (such as the Pi-hole DNS sinkhole and Proxmox management interfaces) exist outside Kubernetes. If the cluster restarts or undergoes maintenance, an in-cluster ingress controller goes down with it.
 
-The solution was deploying an external, lightweight Nginx reverse proxy (`CT 302`) and Pi-hole (`CT 300`) as standalone LXC containers.
+The solution was deploying an external, lightweight Nginx reverse proxy and Pi-hole as standalone LXC containers.
 
 ### Field Note: The Two Protocol Traps
 
 Building the gateway uncovered two real-world operational challenges:
 
-1. **Pi-hole v6 FTL Decoupling:** Pi-hole v6 migrated from `/etc/dnsmasq.d/` flat files to `/etc/pihole/pihole.toml`. It silently ignored wildcard configurations until `misc.etc_dnsmasq_d = true` was explicitly enabled in Ansible.
-2. **Linux RFC 6762 mDNS Trap:** Client workstations failed to query `*.homelab.local` because Linux `systemd-resolved` routes `.local` queries via multicast mDNS by default. Configuring an explicit routing domain (`~homelab.local`) forced unicast resolution to the homelab DNS server.
+* **Pi-hole v6 FTL Decoupling:** Pi-hole v6 migrated from `/etc/dnsmasq.d/` flat files to `/etc/pihole/pihole.toml`. It silently ignored wildcard configurations until `misc.etc_dnsmasq_d = true` was explicitly enabled in Ansible.
+* **Linux RFC 6762 mDNS Trap:** Client workstations failed to query `*.homelab.local` because Linux `systemd-resolved` routes `.local` queries via multicast mDNS by default. Configuring an explicit routing domain (`~homelab.local`) forced unicast resolution to the homelab DNS server.
 
 ---
 
@@ -124,3 +130,14 @@ This resulted in formal Architectural Decision Records:
 * **[ADR 003](adr/003-cilium-ebpf-in-vxlan-overlay-mode.md):** Cilium eBPF in VXLAN overlay mode.
 * **[ADR 004](adr/004-three-tier-platform-lifecycle.md):** Three-tier platform lifecycle (OpenTofu, Ansible, ArgoCD).
 * **[ADR 005](adr/005-external-reverse-proxy-gateway.md):** External reverse proxy gateway.
+
+---
+
+## Act 6: The Phoenix Rebuild
+
+With individual components automated, the final friction point emerged: the handoff between layers. Rebuilding the platform from scratch still required a manual relay across multiple terminal tabs to copy join tokens and execute bootstrap scripts sequentially.
+
+This prompted [ADR 006](adr/006-orchestrated-cluster-bootstrap-via-ansible-scripts.md) and the final operational refinements:
+
+* **Master Orchestration (`site.yml`):** Chaining VM baselines, cluster bootstrapping, Cilium CNI, and ArgoCD in strict sequence, passing join tokens in Ansible memory without manual intervention.
+* **Golden Image Baking:** Using `virt-customize` on the cloud-init template to pre-bake `qemu-guest-agent` and truncate `/etc/machine-id`, eliminating API timeouts and duplicate DHCP leases.

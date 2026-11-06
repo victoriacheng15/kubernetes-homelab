@@ -9,7 +9,7 @@ This guide covers the three sequential provisioning layers that build the homela
 | Layer | Primary Tooling | Responsibilities & Scope |
 | :--- | :--- | :--- |
 | **Layer 1: Infrastructure** | OpenTofu & Proxmox VE | Physical hypervisor clustering, Corosync QDevice quorum tiebreaker, Chrony NTP synchronization, Ubuntu cloud-init templates, and automated VM/LXC provisioning |
-| **Layer 2: Node OS Baseline** | Ansible (`CT 303`) | Kernel modules (`overlay`, `br_netfilter`), swap deactivation, sysctl parameters, Pi-hole DNS sinkhole, and Tailscale VPN gateway |
+| **Layer 2: Node OS Baseline** | Ansible | Kernel modules (`overlay`, `br_netfilter`), swap deactivation, sysctl parameters, Pi-hole DNS sinkhole, and Tailscale VPN gateway |
 | **Layer 3: Declarative GitOps** | k3s & ArgoCD | k3s control plane, Cilium eBPF network fabric, ArgoCD App-of-Apps sync waves, and Nginx reverse proxy dashboard routing |
 
 ---
@@ -78,10 +78,14 @@ Distributed consensus engines (etcd in k3s and Corosync in Proxmox) require sub-
 
 Create the Ubuntu 24.04 Server template (VM 9000) on local hypervisor storage:
 
-- **Download Ubuntu 24.04 Cloud Image:**
+- **Download and Customize Ubuntu 24.04 Cloud Image:**
+
+  Install `libguestfs-tools` to inject `qemu-guest-agent` and truncate `/etc/machine-id` (preventing cloned DHCP lease collisions) directly on the disk image before importing:
 
   ```bash
+  apt update && apt install -y libguestfs-tools
   wget https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
+  virt-customize -a noble-server-cloudimg-amd64.img --install qemu-guest-agent --truncate /etc/machine-id
   ```
 
 - **Create Template VM and Import Virtual Disk:**
@@ -96,8 +100,9 @@ Create the Ubuntu 24.04 Server template (VM 9000) on local hypervisor storage:
   ```bash
   qm set 9000 --scsihw virtio-scsi-single --scsi0 local-lvm:vm-9000-disk-0,discard=on,ssd=1
   qm set 9000 --ide2 local-lvm:cloudinit --boot order=scsi0 --serial0 socket --vga serial0
+  qm set 9000 --agent enabled=1
   qm template 9000
-  rm -f noble-server-cloudimg-amd64.img
+  rm noble-server-cloudimg-amd64.img
   ```
 
 ### OpenTofu Deployment
@@ -106,29 +111,43 @@ Deploy virtual machines and utility containers:
 
 - **Generate SSH Key Pairs for Fleet Access:**
 
-  Create the administrator key for interactive SSH access:
+  Both the administrator key and the Ansible automation key are created directly on the **Proxmox host (`pve-01`)**:
+
+  Create the administrator key for interactive operator access:
 
   ```bash
   ssh-keygen -t ed25519 -C "k8s-homelab-admin"
+  cat ~/.ssh/id_ed25519.pub
   ```
 
-  Create the dedicated automation key for the Ansible controller (`CT 303`):
+  Create the dedicated automation key pair for the Ansible controller:
 
   ```bash
   ssh-keygen -t ed25519 -f ~/.ssh/ansible -C "ansible"
+  cat ~/.ssh/ansible.pub
   ```
 
-- **Configure Environment Variables:**
+- **Configure Environment Variables (Local Workstation):**
 
   Generate a Proxmox API token (`root@pam!tofu`) with Privilege Separation unchecked under `Datacenter -> Permissions -> API Tokens`.
-  Populate `infra/terraform.tfvars` from `infra/terraform.tfvars.example`, supplying your public keys (`~/.ssh/id_ed25519.pub` and `~/.ssh/ansible.pub`) alongside your host endpoints, credentials, and static network leases.
+  Populate `infra/terraform.tfvars` from `infra/terraform.tfvars.example`, supplying the `admin_ssh_public_key` and `ansible_ssh_public_key` public keys generated on `pve-01` alongside your host endpoints, credentials, and static network leases.
 
-- **Provision Infrastructure Resources:**
+- **Provision Infrastructure Resources (Local Workstation):**
 
   ```bash
   tofu -chdir=infra init
   tofu -chdir=infra plan
   tofu -chdir=infra apply
+  ```
+
+- **Inject Automation Key into Controller Container (`pve-01`):**
+
+  On **`pve-01`**, transfer the automation key pair directly into the newly created Ansible container:
+
+  ```bash
+  pct exec 300 -- mkdir -p /root/.ssh
+  pct push 300 ~/.ssh/ansible /root/.ssh/ansible -perms 0600
+  pct push 300 ~/.ssh/ansible.pub /root/.ssh/ansible.pub -perms 0644
   ```
 
 ### Standalone Utility Containers
@@ -137,10 +156,10 @@ Alongside the Kubernetes virtual machines, OpenTofu provisions unprivileged Debi
 
 | Container | ID | Host | IP Mode | Operational Purpose |
 | :--- | :--- | :--- | :--- | :--- |
-| **`pihole`** | `CT 300` | `pve-02` | Static / DHCP | Local DNS sinkhole and wildcard domain resolver (`*.homelab.local`) |
+| **`ansible`** | `CT 300` | `pve-01` | DHCP | Dedicated automation controller node running playbooks across the fleet |
 | **`tailscale`** | `CT 301` | `pve-01` | DHCP | Encrypted mesh VPN subnet router gateway (`homelab_subnet`) |
 | **`nginx`** | `CT 302` | `pve-01` | DHCP | Local reverse proxy and SSL gateway for cluster dashboards |
-| **`ansible`** | `CT 303` | `pve-01` | DHCP | Dedicated automation controller node running playbooks across the fleet |
+| **`pihole`** | `CT 303` | `pve-01` | Static / DHCP | Local DNS sinkhole and wildcard domain resolver (`*.homelab.local`) |
 
 ---
 
@@ -148,17 +167,22 @@ Alongside the Kubernetes virtual machines, OpenTofu provisions unprivileged Debi
 
 Before bootstrapping Kubernetes, all VM nodes must have active swap disabled, kernel networking modules loaded, and sysctl packet forwarding rules applied. Additionally, foundational utility containers (Pi-hole DNS and Tailscale VPN) are provisioned.
 
-This baseline tuning and utility automation is orchestrated using Ansible from the dedicated controller container (`CT 303` on `pve-01`):
+This baseline tuning and utility automation is orchestrated using Ansible from the dedicated controller container on `pve-01`:
 
 - **Access the Controller Container (`pve-01`):**
 
   ```bash
-  pct enter 303
+  pct enter 300
   ```
 
 - **Bootstrap Ansible Tooling:**
 
   ```bash
+  apt update && apt install -y curl git locales
+  sed -i 's/^# *en_US.UTF-8/en_US.UTF-8/' /etc/locale.gen
+  locale-gen en_US.UTF-8
+  update-locale LANG=en_US.UTF-8
+
   curl -LsSf https://astral.sh/uv/install.sh | sh
   source $HOME/.local/bin/env
   uv tool install ansible-core
@@ -176,8 +200,11 @@ This baseline tuning and utility automation is orchestrated using Ansible from t
 
   ```bash
   cp inventory.example.ini inventory.ini
-  ansible -i inventory.ini nodes -m ping
+  ansible -i inventory.ini all -m ping
   ```
+
+??? note "Screenshot: Fleet Reachability Verification (`all -m ping`)"
+    ![Ansible Fleet Reachability Ping](assets/screenshots/ansible-fleet-ping.png)
 
 ### VM Node Baseline Hardening (`01-setup-vms.yml`)
 
@@ -205,22 +232,34 @@ Standalone Debian LXC utility containers are configured with auxiliary services:
   ansible-playbook -i inventory.ini playbooks/02-setup-pihole.yml
   ```
 
-  Verify Pi-hole status on `CT 300`:
+  Verify Pi-hole status (via Ansible controller or directly on the `pihole` container):
 
   ```bash
-  pihole status
+  ansible -i inventory.ini dns -m command -a "pihole status"
   ```
 
 - **Encrypted Mesh Subnet Router (`03-setup-tailscale.yml`):**
+
+  Because Tailscale operates inside an unprivileged LXC container, `/dev/net/tun` device passthrough must be enabled on the Proxmox host (`pve-01`) before starting the service:
+
+  ```bash
+  cat << 'EOF' >> /etc/pve/lxc/301.conf
+  lxc.cgroup2.devices.allow: c 10:200 rwm
+  lxc.mount.entry: /dev/net/tun dev/net/tun none bind,create=file
+  EOF
+  pct reboot 301
+  ```
+
+  Deploy the Tailscale configuration from the Ansible controller:
 
   ```bash
   ansible-playbook -i inventory.ini playbooks/03-setup-tailscale.yml
   ```
 
-  Verify Tailscale status on `CT 301`:
+  Verify Tailscale status (via Ansible controller or directly on the `tailscale` container):
 
   ```bash
-  tailscale status
+  ansible -i inventory.ini vpn -m command -a "tailscale status"
   ```
 
 ---
@@ -238,14 +277,12 @@ Before initializing the cluster, execute `bootstrap/00-preflight.sh` as an optio
 Execute an on-demand audit across all virtual machines simultaneously using the Ansible ad-hoc CLI:
 
 ```bash
-# From ansible/ directory against all cluster nodes in parallel:
 ansible -i inventory.ini nodes -m ansible.builtin.script -a "../bootstrap/00-preflight.sh"
 ```
 
 To run against a single specific node (for example, `k8s-cp-01`):
 
 ```bash
-# From ansible/ directory against a single node:
 ansible -i inventory.ini k8s-cp-01 -m ansible.builtin.script -a "../bootstrap/00-preflight.sh"
 ```
 
@@ -254,19 +291,20 @@ ansible -i inventory.ini k8s-cp-01 -m ansible.builtin.script -a "../bootstrap/00
 The cluster nodes playbook orchestrates the initialization of the control plane and automated joining of worker nodes without manual token copying:
 
 ```bash
-# From ansible/ directory:
 ansible-playbook -i inventory.ini playbooks/04-bootstrap-cluster.yml
 ```
 
-This playbook runs across two sequential plays:
+This playbook runs across three sequential plays:
 
 - **Control Plane Initialization (`k8s-cp-01`):**
     - Executes `bootstrap/01-k3s-server.sh` via `ansible.builtin.script` with Flannel and Traefik disabled.
     - Captures the cluster join token from `/var/lib/rancher/k3s/server/node-token` and registers it in memory.
 
 - **Worker Node Joining (`k8s-telemetry-01`, `k8s-app-01`):**
-    - Executes `bootstrap/02-k3s-agent.sh` on worker targets, automatically injecting the join endpoint, token, and node workload roles (`workload=telemetry`, `workload=app`).
-    - Labels node roles formally from the control plane in compliance with the Kubernetes NodeRestriction admission controller.
+    - Executes `bootstrap/02-k3s-agent.sh` on worker targets, automatically injecting the join endpoint and cluster token.
+
+- **Role & Workload Classification (`k8s-cp-01`):**
+    - Labels dedicated node roles (`telemetry`, `app`) and workload profiles directly from the control plane in compliance with the Kubernetes NodeRestriction admission controller.
 
 Verify node status from the control plane:
 
@@ -274,12 +312,14 @@ Verify node status from the control plane:
 kubectl get nodes -o wide
 ```
 
+??? note "Screenshot: Cluster Nodes & Role Classification Status"
+    ![Cluster Nodes Status](assets/screenshots/k3s-cluster-nodes.png)
+
 ### In-Cluster Platform & Network Services (`05-setup-cluster-services.yml`)
 
 With nodes joined, deploy core networking, GitOps, and platform resilience tools to `k8s-cp-01`:
 
 ```bash
-# From ansible/ directory:
 ansible-playbook -i inventory.ini playbooks/05-setup-cluster-services.yml
 ```
 
@@ -312,23 +352,40 @@ Key parameters configured across cluster services:
 | **ArgoCD Ingress** | NodePort `30080` / `30443` | Reverse proxy entrypoint for GitOps UI and API |
 | **Chaos Mesh Ingress** | NodePort `31333` | Reverse proxy entrypoint for Chaos Dashboard |
 
-??? note "Screenshot: Cluster Nodes & Cilium Datapath Status"
-    ![Proxmox Console Cilium and Node Status](assets/screenshots/proxmox-pve-cilium-status.png)
+Verify platform service rollout across all namespaces:
+
+```bash
+kubectl get pods -A
+```
+
+??? note "Screenshot: Core Platform Pod Status (Cilium, ArgoCD, Chaos Mesh)"
+    ![Core Platform Pod Status](assets/screenshots/platform-pods-status.png)
 
 ### ArgoCD App-of-Apps Declarative Workload Reconciliation
 
 Once ArgoCD is running, initialize declarative GitOps workload delivery:
 
-- Retrieve the initial auto-generated administrator password:
+- **Configure Workstation Cluster Access (`kubeconfig`):**
+
+  To manage the cluster directly from your workstation without overwriting an existing `~/.kube/config`, save the configuration to a dedicated file:
 
   ```bash
-  kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
+  mkdir -p ~/.kube
+  ssh ubuntu@<k8s-cp-01-ip> "sudo cat /etc/rancher/k3s/k3s.yaml" > ~/.kube/k8s
+  chmod 600 ~/.kube/k8s
+  sed -i "s/127.0.0.1/<k8s-cp-01-ip>/g" ~/.kube/k8s
   ```
 
-- Apply the root orchestrator manifest:
+- **Retrieve Initial ArgoCD Administrator Password:**
 
   ```bash
-  kubectl apply -f gitops/root-application.yaml
+  kubectl --kubeconfig=$HOME/.kube/k8s -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
+  ```
+
+- **Apply Root Orchestrator Manifest:**
+
+  ```bash
+  kubectl --kubeconfig=$HOME/.kube/k8s apply -f gitops/root-application.yaml
   ```
 
 The root application automatically watches `gitops/bootstrap/` and reconciles workloads across dedicated node roles and phases:
@@ -343,8 +400,8 @@ The root application automatically watches `gitops/bootstrap/` and reconciles wo
 Verify application reconciliation status using CLI:
 
 ```bash
-kubectl get applications -n argocd
-kubectl get pods -A
+kubectl --kubeconfig=$HOME/.kube/k8s get applications -n argocd
+kubectl --kubeconfig=$HOME/.kube/k8s get pods -A
 ```
 
 ??? note "Screenshot: ArgoCD Dashboard & Application Tree"
@@ -352,20 +409,16 @@ kubectl get pods -A
 
 ### Ingress Gateway & Reverse Proxy Setup (`06-setup-nginx.yml`)
 
-Deploy the Nginx gateway configuration to `CT 302` to establish reverse proxy routes for all platform dashboards:
+Deploy the Nginx gateway configuration to the `nginx` container to establish reverse proxy routes for all platform dashboards:
 
 ```bash
-# From ansible/ directory:
 ansible-playbook -i inventory.ini playbooks/06-setup-nginx.yml
 ```
 
-Verify Nginx status and virtual host routes on `CT 302`:
+Verify Nginx status and virtual host routes (via Ansible controller or directly on the `nginx` container):
 
 ```bash
-# On Nginx container (CT 302): verify service status and syntax
-systemctl status nginx
-nginx -t
-ls -la /etc/nginx/conf.d/
+ansible -i inventory.ini gateway -m command -a "nginx -t"
 ```
 
 Access all homelab dashboards in your browser via the managed reverse proxy routes:
@@ -380,6 +433,28 @@ Access all homelab dashboards in your browser via the managed reverse proxy rout
 | `juiceshop.homelab.local` | `juice-shop:30081` | Vulnerable web application generating attack traffic for Falco |
 | `chaos.homelab.local` | `chaos-dashboard:31333` | Visual experiment designer for fault injection and stress tests |
 
+- **Configure Workstation Wildcard DNS Resolution (`systemd-resolved`):**
+
+  To resolve `*.homelab.local` subdomains from your local workstation without editing `/etc/hosts` for every service, configure a persistent routing domain in `systemd-resolved` pointing to the Pi-hole DNS server:
+
+  ```bash
+  sudo mkdir -p /etc/systemd/resolved.conf.d
+
+  sudo tee /etc/systemd/resolved.conf.d/homelab.conf << 'EOF'
+  [Resolve]
+  DNS=<pihole-ip>
+  Domains=~homelab.local
+  EOF
+
+  sudo systemctl restart systemd-resolved
+  ```
+
+  Verify wildcard resolution from your workstation:
+
+  ```bash
+  dig pihole.homelab.local +short
+  ```
+
 ---
 
 ## Master Pipeline Orchestration (`site.yml`)
@@ -387,7 +462,6 @@ Access all homelab dashboards in your browser via the managed reverse proxy rout
 For zero-touch full-fleet provisioning and disaster recovery drills ("The Phoenix Rebuild"), the entire platform from bare virtual machines to reverse proxy ingress can be executed sequentially using the master orchestrator playbook:
 
 ```bash
-# From ansible/ directory:
 ansible-playbook -i inventory.ini site.yml
 ```
 

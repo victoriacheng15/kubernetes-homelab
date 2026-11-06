@@ -1,6 +1,6 @@
 # ADR 006: Orchestrated Cluster Bootstrap via Ansible Scripts
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-11-04
 - **Author:** Victoria Cheng
 
@@ -50,7 +50,7 @@ A root orchestrator playbook (`ansible/site.yml`) imports all six numbered stage
 
 - Establish two distinct Ed25519 SSH keys:
     - Administrator Key (`k8s-homelab-admin`): For interactive operator access and direct debugging.
-    - Automation Key (`ansible`): Stored exclusively on `CT 303` for automated playbook runs.
+    - Automation Key (`ansible`): Stored exclusively on the `ansible` container for automated playbook runs.
 - OpenTofu Cloud-Init and LXC user account provisioning inject both public keys on first boot.
 
 ## Consequences
@@ -69,7 +69,7 @@ A root orchestrator playbook (`ansible/site.yml`) imports all six numbered stage
 
 ## Verification
 
-- [ ] **Cluster Node Joining:** Verify `04-bootstrap-cluster.yml` initializes `k8s-cp-01` and joins `k8s-telemetry-01` and `k8s-app-01` cleanly.
-- [ ] **Platform Services Bootstrap:** Verify `05-setup-cluster-services.yml` deploys Cilium, ArgoCD, and Chaos Mesh, with all pods reaching `Running` status.
-- [ ] **Gateway Routing:** Verify `06-setup-nginx.yml` configures virtual host routes and enables access across all `*.homelab.local` endpoints.
-- [ ] **Full Pipeline Drill:** Execute the complete Phoenix Rebuild from bare VMs through `site.yml` end to end to confirm zero-touch reproducibility.
+- [x] **Cluster Node Joining:** Verify `04-bootstrap-cluster.yml` initializes `k8s-cp-01` and joins `k8s-telemetry-01` and `k8s-app-01` cleanly with control-plane role classification.
+- [x] **Platform Services Bootstrap:** Verify `05-setup-cluster-services.yml` deploys Cilium, ArgoCD, and Chaos Mesh, with all pods reaching `Running` status.
+- [x] **Gateway Routing:** Verify `06-setup-nginx.yml` configures virtual host routes and enables access across all `*.homelab.local` endpoints.
+- [x] **Full Pipeline Drill:** Execute the complete Phoenix Rebuild from bare VMs through `site.yml` end to end to confirm zero-touch reproducibility.

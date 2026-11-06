@@ -10,7 +10,7 @@ Providing network access to homelab services requires ingress routing from LAN c
 
 In this homelab environment, several constraints and operational challenges arise:
 
-1. **Decoupled Out-of-Cluster Services:** Critical services exist outside the Kubernetes cluster, including the Pi-hole DNS sinkhole (`CT 300`) and Proxmox VE hypervisor management interfaces. An in-cluster ingress controller cannot proxy traffic when Kubernetes nodes are offline.
+1. **Decoupled Out-of-Cluster Services:** Critical services exist outside the Kubernetes cluster, including the Pi-hole DNS sinkhole and Proxmox VE hypervisor management interfaces. An in-cluster ingress controller cannot proxy traffic when Kubernetes nodes are offline.
 2. **Resource Constraints:** In a two-node heterogeneous cluster (`pve-01` Mini PC, `pve-02` Laptop), running in-cluster ingress controller daemonsets, proxy pods, and load balancers consumes CPU and memory that are better reserved for application workloads and observability pipelines.
 3. **Consumer Network Limitations:** The home LAN operates on a standard router without native BGP support. Relying on Layer 2 ARP leader election for virtual IPs introduces failover latency and network broadcast overhead.
 
@@ -18,13 +18,13 @@ How should ingress routing and reverse proxying be structured to serve both Kube
 
 ## Decision Outcome
 
-Deploy an external, standalone Nginx reverse proxy inside a dedicated lightweight Proxmox LXC container (`CT 302` on `pve-01`):
+Deploy an external, standalone Nginx reverse proxy inside a dedicated lightweight Proxmox LXC container on `pve-01`:
 
 ### Standalone Gateway Architecture
 
 - Host Nginx within a Debian LXC container on `pve-01` bridged directly onto the primary LAN (`vmbr0`).
 - Assign a dedicated static IP address within the infrastructure subnet range.
-- Pair with the Pi-hole DNS sinkhole (`CT 300`) where a wildcard DNS entry (`*.homelab.local`) resolves directly to the Nginx gateway IP.
+- Pair with the Pi-hole DNS sinkhole where a wildcard DNS entry (`*.homelab.local`) resolves directly to the Nginx gateway IP.
 
 ### Unified Routing Hub
 
