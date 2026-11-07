@@ -125,7 +125,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Setup Kubectl
-        uses: azure/setup-kubectl@v4
+        uses: azure/setup-kubectl@v5
 
       - name: Setup Kubeconform
         run: |
