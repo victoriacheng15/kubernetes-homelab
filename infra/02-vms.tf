@@ -86,3 +86,64 @@ resource "proxmox_virtual_environment_vm" "vms" {
 
   scsi_hardware = "virtio-scsi-single"
 }
+
+# ==============================================================================
+# Ephemeral Sandbox Virtual Machines (bpg/proxmox)
+# ==============================================================================
+
+resource "proxmox_virtual_environment_vm" "sandbox" {
+  for_each    = var.sandbox_vms
+  node_name   = try(each.value.node_name, "pve-01")
+  vm_id       = each.value.vm_id
+  name        = each.key
+  description = "Ephemeral Sandbox VM in 900-series for testing dotfiles and Ansible plays"
+  tags        = try(each.value.tags, ["sandbox"])
+
+  agent {
+    enabled = true
+  }
+
+  clone {
+    vm_id     = each.value.template_id
+    node_name = try(each.value.node_name, "pve-01")
+  }
+
+  initialization {
+    ip_config {
+      ipv4 {
+        address = each.value.ipv4_address
+        gateway = try(each.value.ipv4_gateway, "10.0.0.1")
+      }
+    }
+
+    user_account {
+      username = try(each.value.username, "ubuntu")
+      keys     = [var.ansible_ssh_public_key]
+    }
+  }
+
+  cpu {
+    cores = try(each.value.cores, 2)
+    type  = "host"
+  }
+
+  memory {
+    dedicated = try(each.value.memory, 4096)
+  }
+
+  network_device {
+    bridge = "vmbr0"
+    model  = "virtio"
+  }
+
+  disk {
+    datastore_id = "local-lvm"
+    size         = try(each.value.disk_size, 30)
+    interface    = "scsi0"
+    discard      = "on"
+    ssd          = true
+    iothread     = true
+  }
+
+  scsi_hardware = "virtio-scsi-single"
+}

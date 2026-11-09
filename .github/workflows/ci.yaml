@@ -89,7 +89,7 @@ jobs:
 
       - name: Initialize Providers
         working-directory: infra
-        run: tofu init -backend=false
+        run: tofu init -backend=false -upgrade
 
       - name: Validate Configuration
         working-directory: infra

@@ -48,3 +48,20 @@ variable "container_template_file_id" {
   type        = string
   default     = "local:vztmpl/debian-13-standard_13.6-1_amd64.tar.zst"
 }
+
+variable "sandbox_vms" {
+  description = "Dynamic map of ephemeral sandbox VMs (900-series, static IPs 10.0.0.9x)"
+  type = map(object({
+    node_name    = optional(string, "pve-01")
+    vm_id        = number
+    template_id  = number
+    ipv4_address = string
+    ipv4_gateway = optional(string, "10.0.0.1")
+    username     = optional(string, "ubuntu")
+    cores        = optional(number, 2)
+    memory       = optional(number, 4096)
+    disk_size    = optional(number, 30)
+    tags         = optional(list(string), ["sandbox"])
+  }))
+  default = {}
+}
