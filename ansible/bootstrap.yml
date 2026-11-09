@@ -1,0 +1,10 @@
+---
+# ==============================================================================
+# Cluster Bootstrap Pipeline: bootstrap.yml
+# Purpose: Fully provisions the Kubernetes cluster without external dependencies.
+# Usage: ansible-playbook -i ansible/inventory.ini ansible/bootstrap.yml
+# ==============================================================================
+
+- import_playbook: playbooks/01-setup-vms.yml
+- import_playbook: playbooks/02-bootstrap-cluster.yml
+- import_playbook: playbooks/03-setup-cluster-services.yml

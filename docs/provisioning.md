@@ -9,8 +9,9 @@ This guide covers the three sequential provisioning layers that build the homela
 | Layer | Primary Tooling | Responsibilities & Scope |
 | :--- | :--- | :--- |
 | **Layer 1: Infrastructure** | OpenTofu & Proxmox VE | Physical hypervisor clustering, Corosync QDevice quorum tiebreaker, Chrony NTP synchronization, Ubuntu cloud-init templates, and automated VM/LXC provisioning |
-| **Layer 2: Node OS Baseline** | Ansible | Kernel modules (`overlay`, `br_netfilter`), swap deactivation, sysctl parameters, Pi-hole DNS sinkhole, and Tailscale VPN gateway |
-| **Layer 3: Declarative GitOps** | k3s & ArgoCD | k3s control plane, Cilium eBPF network fabric, ArgoCD App-of-Apps sync waves, and Nginx reverse proxy dashboard routing |
+| **Layer 2: Node OS Baseline** | Ansible | Kernel modules (`overlay`, `br_netfilter`), swap deactivation, sysctl parameters, and core troubleshooting packages |
+| **Layer 3: Declarative GitOps** | k3s & ArgoCD | k3s control plane, Cilium eBPF network fabric, and ArgoCD App-of-Apps sync waves |
+| **Utility Services** | Ansible | Standalone Debian LXC containers hosting auxiliary network and infrastructure services |
 
 ---
 
@@ -157,17 +158,16 @@ Alongside the Kubernetes virtual machines, OpenTofu provisions unprivileged Debi
 | Container | ID | Host | IP Mode | Operational Purpose |
 | :--- | :--- | :--- | :--- | :--- |
 | **`ansible`** | `CT 300` | `pve-01` | DHCP | Dedicated automation controller node running playbooks across the fleet |
-| **`tailscale`** | `CT 301` | `pve-01` | DHCP | Encrypted mesh VPN subnet router gateway (`homelab_subnet`) |
+| **`pihole`** | `CT 301` | `pve-01` | Static / DHCP | Local DNS sinkhole and wildcard domain resolver (`*.homelab.local`) |
 | **`nginx`** | `CT 302` | `pve-01` | DHCP | Local reverse proxy and SSL gateway for cluster dashboards |
-| **`pihole`** | `CT 303` | `pve-01` | Static / DHCP | Local DNS sinkhole and wildcard domain resolver (`*.homelab.local`) |
 
 ---
 
-## Layer 2: Node OS Baseline & Utility Services Provisioning
+## Layer 2: Node OS Baseline Provisioning
 
-Before bootstrapping Kubernetes, all VM nodes must have active swap disabled, kernel networking modules loaded, and sysctl packet forwarding rules applied. Additionally, foundational utility containers (Pi-hole DNS and Tailscale VPN) are provisioned.
+Before bootstrapping Kubernetes, all VM nodes must have active swap disabled, kernel networking modules loaded, and sysctl packet forwarding rules applied.
 
-This baseline tuning and utility automation is orchestrated using Ansible from the dedicated controller container on `pve-01`:
+This baseline tuning is orchestrated using Ansible from the dedicated controller container on `pve-01`:
 
 - **Access the Controller Container (`pve-01`):**
 
@@ -222,46 +222,6 @@ The baseline playbook enforces the following system configurations across all no
 - **Sysctl Parameters:** Enables IP packet forwarding (`net.ipv4.ip_forward = 1`) and bridge netfilter calls.
 - **Core Packages:** Installs essential troubleshooting utilities (`curl`, `git`, `jq`, `tcpdump`, `socat`, `htop`, `tar`).
 
-### Utility Containers Provisioning
-
-Standalone Debian LXC utility containers are configured with auxiliary services:
-
-- **Local Wildcard DNS Sinkhole (`02-setup-pihole.yml`):**
-
-  ```bash
-  ansible-playbook -i inventory.ini playbooks/02-setup-pihole.yml
-  ```
-
-  Verify Pi-hole status (via Ansible controller or directly on the `pihole` container):
-
-  ```bash
-  ansible -i inventory.ini dns -m command -a "pihole status"
-  ```
-
-- **Encrypted Mesh Subnet Router (`03-setup-tailscale.yml`):**
-
-  Because Tailscale operates inside an unprivileged LXC container, `/dev/net/tun` device passthrough must be enabled on the Proxmox host (`pve-01`) before starting the service:
-
-  ```bash
-  cat << 'EOF' >> /etc/pve/lxc/301.conf
-  lxc.cgroup2.devices.allow: c 10:200 rwm
-  lxc.mount.entry: /dev/net/tun dev/net/tun none bind,create=file
-  EOF
-  pct reboot 301
-  ```
-
-  Deploy the Tailscale configuration from the Ansible controller:
-
-  ```bash
-  ansible-playbook -i inventory.ini playbooks/03-setup-tailscale.yml
-  ```
-
-  Verify Tailscale status (via Ansible controller or directly on the `tailscale` container):
-
-  ```bash
-  ansible -i inventory.ini vpn -m command -a "tailscale status"
-  ```
-
 ---
 
 ## Layer 3: Declarative GitOps & Cluster Provisioning
@@ -286,12 +246,12 @@ To run against a single specific node (for example, `k8s-cp-01`):
 ansible -i inventory.ini k8s-cp-01 -m ansible.builtin.script -a "../bootstrap/00-preflight.sh"
 ```
 
-### Cluster Nodes Bootstrap (`04-bootstrap-cluster.yml`)
+### Cluster Nodes Bootstrap (`02-bootstrap-cluster.yml`)
 
 The cluster nodes playbook orchestrates the initialization of the control plane and automated joining of worker nodes without manual token copying:
 
 ```bash
-ansible-playbook -i inventory.ini playbooks/04-bootstrap-cluster.yml
+ansible-playbook -i inventory.ini playbooks/02-bootstrap-cluster.yml
 ```
 
 This playbook runs across three sequential plays:
@@ -315,12 +275,12 @@ kubectl get nodes -o wide
 ??? note "Screenshot: Cluster Nodes & Role Classification Status"
     ![Cluster Nodes Status](assets/screenshots/k3s-cluster-nodes.png)
 
-### In-Cluster Platform & Network Services (`05-setup-cluster-services.yml`)
+### In-Cluster Platform & Network Services (`03-setup-cluster-services.yml`)
 
 With nodes joined, deploy core networking, GitOps, and platform resilience tools to `k8s-cp-01`:
 
 ```bash
-ansible-playbook -i inventory.ini playbooks/05-setup-cluster-services.yml
+ansible-playbook -i inventory.ini playbooks/03-setup-cluster-services.yml
 ```
 
 This playbook injects `KUBECONFIG: /etc/rancher/k3s/k3s.yaml` and deploys three platform tiers:
@@ -407,12 +367,32 @@ kubectl --kubeconfig=$HOME/.kube/k8s get pods -A
 ??? note "Screenshot: ArgoCD Dashboard & Application Tree"
       ![ArgoCD App-of-Apps Dashboard](assets/screenshots/argocd-app-of-apps.png)
 
-### Ingress Gateway & Reverse Proxy Setup (`06-setup-nginx.yml`)
+---
+
+## Utility Containers Provisioning
+
+Standalone Debian LXC utility containers on `pve-01` host external network services to provide local wildcard DNS resolution and unified reverse proxy routing:
+
+### Local DNS Sinkhole & Wildcard Routing (`04-setup-pihole.yml`)
+
+Configure the Pi-hole container to establish network-wide DNS filtering and internal wildcard resolution (`*.homelab.local`):
+
+```bash
+ansible-playbook -i inventory.ini playbooks/04-setup-pihole.yml
+```
+
+Verify Pi-hole status (via Ansible controller or directly on the `pihole` container):
+
+```bash
+ansible -i inventory.ini dns -m command -a "pihole status"
+```
+
+### Ingress Gateway & Reverse Proxy Setup (`05-setup-nginx.yml`)
 
 Deploy the Nginx gateway configuration to the `nginx` container to establish reverse proxy routes for all platform dashboards:
 
 ```bash
-ansible-playbook -i inventory.ini playbooks/06-setup-nginx.yml
+ansible-playbook -i inventory.ini playbooks/05-setup-nginx.yml
 ```
 
 Verify Nginx status and virtual host routes (via Ansible controller or directly on the `nginx` container):
@@ -457,19 +437,41 @@ Access all homelab dashboards in your browser via the managed reverse proxy rout
 
 ---
 
-## Master Pipeline Orchestration (`site.yml`)
+## Pipeline Orchestration
 
-For zero-touch full-fleet provisioning and disaster recovery drills ("The Phoenix Rebuild"), the entire platform from bare virtual machines to reverse proxy ingress can be executed sequentially using the master orchestrator playbook:
+For automated provisioning and disaster recovery drills ("The Phoenix Rebuild"), the platform provides modular pipelines that can be executed independently or chained together:
+
+### 1. Cluster Bootstrap Pipeline (`bootstrap.yml`)
+
+Provisions the complete Kubernetes cluster and platform services without external dependencies:
+
+```bash
+ansible-playbook -i inventory.ini bootstrap.yml
+```
+
+This pipeline executes the three core cluster playbooks:
+
+- `playbooks/01-setup-vms.yml`: Base OS hardening, swap disabling, kernel networking modules, and sysctl rules.
+- `playbooks/02-bootstrap-cluster.yml`: k3s control plane initialization, token capture, and worker node joining.
+- `playbooks/03-setup-cluster-services.yml`: In-cluster Cilium eBPF CNI, ArgoCD GitOps engine, and Chaos Mesh platform.
+
+### 2. Utility Services Pipeline (`utilities.yml`)
+
+Provisions auxiliary network services for local DNS resolution and reverse proxy dashboard ingress:
+
+```bash
+ansible-playbook -i inventory.ini utilities.yml
+```
+
+This pipeline executes the utility container playbooks:
+
+- `playbooks/04-setup-pihole.yml`: Local DNS sinkhole and wildcard domain routing (`*.homelab.local`).
+- `playbooks/05-setup-nginx.yml`: Ingress gateway virtual host routing for all 7 platform dashboards.
+
+### 3. Full Platform Pipeline (`site.yml`)
+
+Chains both pipelines in strict sequence for full-fleet, zero-touch disaster recovery:
 
 ```bash
 ansible-playbook -i inventory.ini site.yml
 ```
-
-This master orchestrator runs all six numbered playbooks in strict dependency order:
-
-- `playbooks/01-setup-vms.yml`: Base OS hardening, swap disabling, kernel networking modules, and sysctl rules.
-- `playbooks/02-setup-pihole.yml`: Local DNS sinkhole and wildcard domain routing (`*.homelab.local`).
-- `playbooks/03-setup-tailscale.yml`: Encrypted mesh VPN subnet router gateway.
-- `playbooks/04-bootstrap-cluster.yml`: k3s control plane initialization, token capture, and worker node joining.
-- `playbooks/05-setup-cluster-services.yml`: In-cluster Cilium eBPF CNI, ArgoCD GitOps engine, and Chaos Mesh platform.
-- `playbooks/06-setup-nginx.yml`: Ingress gateway virtual host routing for all 7 platform dashboards.

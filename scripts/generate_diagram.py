@@ -173,11 +173,11 @@ with Diagram(
                 prom >> grafana
 
             with Cluster("LXC Utilities", graph_attr=cluster_outer_attr):
-                tailscale = LXC("Tailscale")
-                nginx = LXC("Nginx")
                 ansible = LXC("Ansible")
+                pihole = LXC("Pi-hole")
+                nginx = LXC("Nginx")
 
-                tailscale >> Edge(style="invis") >> nginx >> Edge(style="invis") >> ansible
+                pihole >> Edge(style="invis") >> nginx >> Edge(style="invis") >> ansible
 
         with Cluster("Physical Host: pve-02 (Laptop)", graph_attr=cluster_inner_attr):
             with Cluster("k8s-app-01 (App Node)", graph_attr=cluster_outer_attr):
@@ -191,9 +191,6 @@ with Diagram(
                 cilium_app >> Edge(style="invis") >> juice
                 chaos - Edge(color="#64748b") - podinfo
                 juice - Edge(color="#64748b") - falco
-
-            with Cluster("LXC Utilities", graph_attr=cluster_outer_attr):
-                pihole = LXC("Pi-hole")
 
 
 # ==============================================================================

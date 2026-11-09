@@ -11,12 +11,13 @@ locals {
       tags         = ["automation", "utility"]
       ipv4_address = "dhcp"
     }
-    tailscale = {
+    pihole = {
       node_name    = "pve-01"
       vm_id        = 301
-      description  = "Encrypted Tailscale Subnet Router Gateway"
-      tags         = ["vpn", "utility"]
-      ipv4_address = "dhcp"
+      description  = "Local DNS Server and Ad-blocking Sinkhole"
+      tags         = ["dns", "utility"]
+      ipv4_address = var.pihole_ipv4_address
+      ipv4_gateway = var.pihole_ipv4_gateway
     }
     nginx = {
       node_name    = "pve-01"
@@ -24,14 +25,6 @@ locals {
       description  = "Local Reverse Proxy & Domain Router (*.home.arpa)"
       tags         = ["proxy", "utility"]
       ipv4_address = "dhcp"
-    }
-    pihole = {
-      node_name    = "pve-01"
-      vm_id        = 303
-      description  = "Local DNS Server and Ad-blocking Sinkhole"
-      tags         = ["dns", "utility"]
-      ipv4_address = var.pihole_ipv4_address
-      ipv4_gateway = var.pihole_ipv4_gateway
     }
   }
 }
@@ -90,6 +83,7 @@ resource "proxmox_virtual_environment_container" "containers" {
   lifecycle {
     ignore_changes = [
       operating_system[0].template_file_id,
+      initialization[0].user_account,
       unprivileged,
     ]
   }

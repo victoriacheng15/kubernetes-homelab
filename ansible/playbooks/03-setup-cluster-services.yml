@@ -1,6 +1,6 @@
 ---
 # ==============================================================================
-# Playbook: 05-setup-cluster-services.yml
+# Playbook: 03-setup-cluster-services.yml
 # Purpose: Deploys in-cluster network, GitOps, and platform services:
 #          1. Cilium eBPF CNI & Hubble observability
 #          2. ArgoCD continuous delivery engine

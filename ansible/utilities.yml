@@ -1,0 +1,9 @@
+---
+# ==============================================================================
+# Utility Services Pipeline: utilities.yml
+# Purpose: Deploys auxiliary DNS sinkhole and reverse proxy gateway.
+# Usage: ansible-playbook -i ansible/inventory.ini ansible/utilities.yml
+# ==============================================================================
+
+- import_playbook: playbooks/04-setup-pihole.yml
+- import_playbook: playbooks/05-setup-nginx.yml

@@ -28,18 +28,21 @@ Implement an orchestrated hybrid bootstrap architecture combining Ansible plays 
 - Preserve clean, standalone bash scripts under `bootstrap/` (`01-k3s-server.sh`, `02-k3s-agent.sh`, `03-cni-cilium.sh`, `04-gitops-argocd.sh`, `05-chaos-mesh.sh`). Standalone scripts retain syntax highlighting, direct linting with `shellcheck`, and local testing capabilities (`--dry-run`, `--version`).
 - Orchestrate script execution remotely using Ansible's `ansible.builtin.script` module. Ansible transfers the script temporarily to the target VM over SSH, executes it with the required arguments, and deletes the temporary binary.
 
-### Numbered Sequential Pipeline
+### Decoupled Sequential Pipeline
 
 Structure all automation playbooks into sequential numbered stages under `ansible/playbooks/`:
 
 - `01-setup-vms.yml`: Base OS tuning, swap disabling, kernel modules, and sysctl rules.
-- `02-setup-pihole.yml`: Local wildcard DNS sinkhole (`*.homelab.local`).
-- `03-setup-tailscale.yml`: Encrypted mesh VPN subnet router.
-- `04-bootstrap-cluster.yml`: Control plane initialization, in-memory token distribution, and worker node onboarding.
-- `05-setup-cluster-services.yml`: In-cluster Cilium eBPF CNI, ArgoCD continuous delivery engine, and Chaos Mesh platform.
-- `06-setup-nginx.yml`: Ingress gateway virtual host routing for all `*.homelab.local` endpoints.
+- `02-bootstrap-cluster.yml`: Control plane initialization, in-memory token distribution, and worker node onboarding.
+- `03-setup-cluster-services.yml`: In-cluster Cilium eBPF CNI, ArgoCD continuous delivery engine, and Chaos Mesh platform.
+- `04-setup-pihole.yml`: Local DNS sinkhole and wildcard domain routing (`*.homelab.local`).
+- `05-setup-nginx.yml`: Ingress gateway virtual host routing for all `*.homelab.local` endpoints.
 
-A root orchestrator playbook (`ansible/site.yml`) imports all six numbered stages in order for single-command end-to-end execution.
+Organize orchestration into decoupled top-level playbooks:
+
+- `bootstrap.yml`: Provisions the Kubernetes cluster core (`01`, `02`, `03`).
+- `utilities.yml`: Configures auxiliary utility containers (`04`, `05`).
+- `site.yml`: Top-level orchestrator importing both pipelines in order for single-command end-to-end execution.
 
 ### In-Memory Token Distribution
 
@@ -69,7 +72,7 @@ A root orchestrator playbook (`ansible/site.yml`) imports all six numbered stage
 
 ## Verification
 
-- [x] **Cluster Node Joining:** Verify `04-bootstrap-cluster.yml` initializes `k8s-cp-01` and joins `k8s-telemetry-01` and `k8s-app-01` cleanly with control-plane role classification.
-- [x] **Platform Services Bootstrap:** Verify `05-setup-cluster-services.yml` deploys Cilium, ArgoCD, and Chaos Mesh, with all pods reaching `Running` status.
-- [x] **Gateway Routing:** Verify `06-setup-nginx.yml` configures virtual host routes and enables access across all `*.homelab.local` endpoints.
+- [x] **Cluster Node Joining:** Verify `02-bootstrap-cluster.yml` initializes `k8s-cp-01` and joins `k8s-telemetry-01` and `k8s-app-01` cleanly with control-plane role classification.
+- [x] **Platform Services Bootstrap:** Verify `03-setup-cluster-services.yml` deploys Cilium, ArgoCD, and Chaos Mesh, with all pods reaching `Running` status.
+- [x] **Gateway Routing:** Verify `05-setup-nginx.yml` configures virtual host routes and enables access across all `*.homelab.local` endpoints.
 - [x] **Full Pipeline Drill:** Execute the complete Phoenix Rebuild from bare VMs through `site.yml` end to end to confirm zero-touch reproducibility.
