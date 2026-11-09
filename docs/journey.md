@@ -139,5 +139,8 @@ With individual components automated, the final friction point emerged: the hand
 
 This prompted [ADR 006](adr/006-orchestrated-cluster-bootstrap-via-ansible-scripts.md) and the final operational refinements:
 
-* **Master Orchestration (`site.yml`):** Chaining VM baselines, cluster bootstrapping, Cilium CNI, and ArgoCD in strict sequence, passing join tokens in Ansible memory without manual intervention.
+* **Pipeline Orchestration:** Decoupling cluster provisioning from auxiliary services using modular playbooks:
+    * `bootstrap.yml`: Provisions the Kubernetes cluster core.
+    * `utilities.yml`: Configures utility containers.
+    * `site.yml`: Sequences both cluster bootstrap and utility configuration for complete bare-metal reconstruction.
 * **Golden Image Baking:** Using `virt-customize` on the cloud-init template to pre-bake `qemu-guest-agent` and truncate `/etc/machine-id`, eliminating API timeouts and duplicate DHCP leases.

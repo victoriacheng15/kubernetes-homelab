@@ -1,6 +1,6 @@
 ---
 # ==============================================================================
-# Playbook: 06-setup-nginx.yml
+# Playbook: 05-setup-nginx.yml
 # Purpose: Configures Nginx reverse proxy on CT 302 for homelab dashboards.
 # Target: Runs against the [gateway] inventory group.
 # ==============================================================================

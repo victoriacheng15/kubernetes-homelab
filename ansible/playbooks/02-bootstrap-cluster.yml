@@ -1,6 +1,6 @@
 ---
 # ==============================================================================
-# Playbook: 04-bootstrap-cluster.yml
+# Playbook: 02-bootstrap-cluster.yml
 # Purpose: Orchestrates k3s control plane initialization and worker node joins.
 # Targets:
 #   - Play 1: control_plane (k8s-cp-01)
