@@ -7,3 +7,13 @@ template_vm_id             = 9000
 container_template_file_id = "local:vztmpl/debian-13-standard_13.6-1_amd64.tar.zst"
 admin_ssh_public_key   = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... k8s-homelab-admin"
 ansible_ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... ansible"
+
+# sandbox_vms = {
+#   "sandbox-01" = {
+#     vm_id        = 900
+#     template_id  = 9000 # or Fedora template ID (e.g. 9100)
+#     ipv4_address = "10.0.0.90/24"
+#     ipv4_gateway = "10.0.0.1"
+#     username     = "ubuntu" # or "fedora"
+#   }
+# }

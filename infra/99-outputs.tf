@@ -17,3 +17,11 @@ output "vm_ips" {
     name => try([for ip in flatten(vm.ipv4_addresses) : ip if !startswith(ip, "127.")][0], "dhcp")
   }
 }
+
+output "sandbox_ips" {
+  description = "IPv4 addresses for ephemeral sandbox VMs"
+  value = {
+    for name, vm in proxmox_virtual_environment_vm.sandbox :
+    name => try([for ip in flatten(vm.ipv4_addresses) : ip if !startswith(ip, "127.")][0], "static")
+  }
+}
