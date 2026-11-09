@@ -9,7 +9,7 @@
   hosts: dns
   become: true
   environment:
-    PATH: "/usr/local/sbin:/usr/local/bin:{{ ansible_facts['env']['PATH'] }}"
+    PATH: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
   vars:
     nginx_ip: "{{ hostvars['nginx']['ansible_host'] }}"
     pihole_admin_password: "{{ vault_pihole_admin_password | default('admin123') }}"
@@ -17,6 +17,16 @@
     upstream_dns_secondary: "1.0.0.1"
 
   tasks:
+    - name: Ensure bootstrap upstream DNS is configured in /etc/resolv.conf
+      copy:
+        dest: /etc/resolv.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          nameserver {{ upstream_dns_primary }}
+          nameserver {{ upstream_dns_secondary }}
+
     - name: Install prerequisite packages
       apt:
         name:
