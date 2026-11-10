@@ -26,6 +26,14 @@ locals {
       tags         = ["proxy", "utility"]
       ipv4_address = "dhcp"
     }
+    storage = {
+      node_name    = "pve-02"
+      vm_id        = 303
+      description  = "Local Samba (SMB) Network Storage & Backups"
+      tags         = ["storage", "utility"]
+      ipv4_address = "dhcp"
+      disk_size    = 20
+    }
   }
 }
 
@@ -102,7 +110,7 @@ resource "proxmox_virtual_environment_container" "sandbox" {
   tags         = try(each.value.tags, ["sandbox"])
 
   operating_system {
-    template_file_id = try(each.value.template_file_id, var.container_template_file_id)
+    template_file_id = coalesce(each.value.template_file_id, var.container_template_file_id)
     type             = "debian"
   }
 

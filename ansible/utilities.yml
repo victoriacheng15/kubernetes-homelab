@@ -7,3 +7,4 @@
 
 - import_playbook: playbooks/04-setup-pihole.yml
 - import_playbook: playbooks/05-setup-nginx.yml
+- import_playbook: playbooks/06-setup-storage.yml
