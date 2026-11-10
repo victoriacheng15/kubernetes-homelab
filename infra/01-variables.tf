@@ -65,3 +65,21 @@ variable "sandbox_vms" {
   }))
   default = {}
 }
+
+variable "sandbox_containers" {
+  description = "Dynamic map of ephemeral sandbox LXC containers (800-series, static IPs 10.0.0.8x)"
+  type = map(object({
+    node_name        = optional(string, "pve-01")
+    vm_id            = number
+    template_file_id = optional(string)
+    ipv4_address     = string
+    ipv4_gateway     = optional(string, "10.0.0.1")
+    cores            = optional(number, 1)
+    memory           = optional(number, 512)
+    swap             = optional(number, 512)
+    disk_size        = optional(number, 8)
+    datastore_id     = optional(string, "local-lvm")
+    tags             = optional(list(string), ["sandbox"])
+  }))
+  default = {}
+}
