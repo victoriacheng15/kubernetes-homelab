@@ -1,0 +1,98 @@
+---
+# ==============================================================================
+# Playbook: 06-setup-storage.yml
+# Purpose: Configures Samba (SMB) file sharing on sandbox-storage LXC container.
+# Target: Runs against the [storage] inventory group.
+# ==============================================================================
+
+- name: Setup Local Network File Storage (Samba)
+  hosts: storage
+  become: true
+  environment:
+    PATH: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  vars:
+    storage_user: "storage"
+    storage_password: "{{ vault_storage_password | default('changeme123') }}"
+    share_path: "/data/shares/homelab"
+
+  tasks:
+    - name: Install Samba packages
+      apt:
+        name:
+          - samba
+          - samba-common-bin
+        state: present
+        update_cache: true
+
+    - name: Create storage system group
+      group:
+        name: "{{ storage_user }}"
+        state: present
+
+    - name: Create storage system user
+      user:
+        name: "{{ storage_user }}"
+        group: "{{ storage_user }}"
+        shell: /usr/sbin/nologin
+        create_home: false
+        state: present
+
+    - name: Create shared storage directory
+      file:
+        path: "{{ share_path }}"
+        state: directory
+        owner: "{{ storage_user }}"
+        group: "{{ storage_user }}"
+        mode: "0775"
+
+    - name: Configure Samba shares (/etc/samba/smb.conf)
+      copy:
+        dest: /etc/samba/smb.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [global]
+             workgroup = WORKGROUP
+             server string = Homelab Storage
+             server role = standalone server
+             security = user
+             map to guest = never
+             disable netbios = yes
+             smb ports = 445
+             server min protocol = SMB2
+
+          [homelab]
+             comment = Homelab Shared Notes and Backups
+             path = {{ share_path }}
+             browseable = yes
+             read only = no
+             valid users = {{ storage_user }}
+             create mask = 0664
+             directory mask = 0775
+      notify: Restart Samba services
+
+    - name: Check if storage user already exists in Samba
+      command: pdbedit -u {{ storage_user }}
+      register: smb_user_check
+      failed_when: false
+      changed_when: false
+
+    - name: Set initial Samba user password (first run only)
+      shell: |
+        (echo "{{ storage_password }}"; echo "{{ storage_password }}") | smbpasswd -s -a {{ storage_user }}
+      when: smb_user_check.rc != 0
+
+    - name: Ensure Samba services are running and enabled
+      systemd:
+        name: "{{ item }}"
+        state: started
+        enabled: true
+      loop:
+        - smbd
+
+  handlers:
+    - name: Restart Samba services
+      systemd:
+        name: smbd
+        state: restarted
