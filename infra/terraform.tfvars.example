@@ -17,3 +17,14 @@ ansible_ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... ansible"
 #     username     = "ubuntu" # or "fedora"
 #   }
 # }
+
+# sandbox_containers = {
+#   "sandbox-storage" = {
+#     vm_id        = 800
+#     node_name    = "pve-01"
+#     ipv4_address = "10.0.0.80/24"
+#     ipv4_gateway = "10.0.0.1"
+#     memory       = 1024
+#     disk_size    = 20
+#   }
+# }

@@ -88,3 +88,67 @@ resource "proxmox_virtual_environment_container" "containers" {
     ]
   }
 }
+
+# ==============================================================================
+# Ephemeral Sandbox LXC Containers (bpg/proxmox)
+# ==============================================================================
+
+resource "proxmox_virtual_environment_container" "sandbox" {
+  for_each     = var.sandbox_containers
+  node_name    = try(each.value.node_name, "pve-01")
+  vm_id        = each.value.vm_id
+  unprivileged = true
+  description  = "Ephemeral Sandbox LXC in 800-series for testing services"
+  tags         = try(each.value.tags, ["sandbox"])
+
+  operating_system {
+    template_file_id = try(each.value.template_file_id, var.container_template_file_id)
+    type             = "debian"
+  }
+
+  initialization {
+    hostname = each.key
+
+    ip_config {
+      ipv4 {
+        address = each.value.ipv4_address
+        gateway = try(each.value.ipv4_gateway, "10.0.0.1")
+      }
+    }
+
+    user_account {
+      keys = [trimspace(var.ansible_ssh_public_key)]
+    }
+  }
+
+  cpu {
+    cores = try(each.value.cores, 1)
+  }
+
+  memory {
+    dedicated = try(each.value.memory, 512)
+    swap      = try(each.value.swap, 512)
+  }
+
+  disk {
+    datastore_id = try(each.value.datastore_id, "local-lvm")
+    size         = try(each.value.disk_size, 8)
+  }
+
+  network_interface {
+    name   = "eth0"
+    bridge = "vmbr0"
+  }
+
+  features {
+    nesting = true
+  }
+
+  lifecycle {
+    ignore_changes = [
+      operating_system[0].template_file_id,
+      initialization[0].user_account,
+      unprivileged,
+    ]
+  }
+}
