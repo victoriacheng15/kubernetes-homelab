@@ -12,7 +12,7 @@ Executed automated infrastructure and cluster provisioning drills across OpenTof
 
 ### Target Scope
 
-* **Virtual Machines:** `k8s-cp-01` (VM 100), `k8s-telemetry-01` (VM 101), `k8s-app-01` (VM 200)
+* **Virtual Machines:** `k8s-cp-01`, `k8s-telemetry-01`, `k8s-app-01`
 * **Containers (LXC):** `ansible`, `tailscale`, `nginx`, `pihole`
 * **Provisioning & Automation:** `infra/`, `ansible/`, `bootstrap/`
 
@@ -195,7 +195,7 @@ Bootstrapped the Layer 3 Kubernetes platform across three virtual machines (`k8s
 
 ### Target Scope
 
-* **Virtual Machines:** `k8s-cp-01` (VM 100), `k8s-telemetry-01` (VM 101), `k8s-app-01` (VM 200)
+* **Virtual Machines:** `k8s-cp-01`, `k8s-telemetry-01`, `k8s-app-01`
 * **Automation & Scripts:** `bootstrap/00-preflight.sh`, `bootstrap/01-k3s-server.sh`, `bootstrap/02-k3s-agent.sh`, `bootstrap/03-cni-cilium.sh`, `Makefile`
 * **Documentation:** `docs/provisioning.md`, `docs/adr/003-cilium-ebpf-in-vxlan-overlay-mode.md`, `bootstrap/README.md`
 
@@ -258,7 +258,7 @@ Established strict separation of concerns across the platform hierarchy (OpenTof
 
 ### Target Scope
 
-* **Virtual Machines:** `k8s-cp-01` (VM 100), `k8s-telemetry-01` (VM 101), `k8s-app-01` (VM 200)
+* **Virtual Machines:** `k8s-cp-01`, `k8s-telemetry-01`, `k8s-app-01`
 * **Containers (LXC):** `pihole`, `tailscale`, `nginx`, `ansible`
 * **Automation & Docs:** `infra/`, `ansible/`, `scripts/generate_diagram.py`, `docs/assets/`
 
@@ -295,7 +295,7 @@ Initialized the physical dual-node Proxmox VE cluster (`k8s-homelab`) with an ex
 ### Target Scope
 
 * **Physical Hosts:** `pve-01` (Mini PC), `pve-02` (Laptop), `rpi-01` (Raspberry Pi 3B)
-* **Virtual Machines:** `k8s-cp-01` (VM 100), `k8s-telemetry-01` (VM 101), `k8s-app-01` (VM 200), Ubuntu 24.04 Template (VM 9000)
+* **Virtual Machines:** `k8s-cp-01`, `k8s-telemetry-01`, `k8s-app-01`, Ubuntu 24.04 Template
 * **Containers (LXC):** `pihole` on `pve-02`, `tailscale` on `pve-01`, `nginx` on `pve-01`, `ansible` on `pve-01`
 
 ### Key Changes
@@ -304,7 +304,7 @@ Initialized the physical dual-node Proxmox VE cluster (`k8s-homelab`) with an ex
 * Preserved existing container configs across the `pmxcfs` join and migrated `tailscale` from `pve-02` to `pve-01`.
 * Installed `corosync-qnetd` on `rpi-01` and attached it as the external cluster QDevice via `pvecm qdevice setup`.
 * Configured Chrony NTP on `rpi-01` as the local network time server and synchronized `pve-01` and `pve-02`.
-* Migrated Ubuntu 24.04 Cloud-Init template (VM 9000) to `pve-01` local storage.
+* Migrated Ubuntu 24.04 Cloud-Init template to `pve-01` local storage.
 * Downloaded Debian 13 standard amd64 LXC template on `pve-01`.
 * Configured OpenTofu manifests (`infra/`) to provision Kubernetes VMs and manage LXC utility containers.
 
