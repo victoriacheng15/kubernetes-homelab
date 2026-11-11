@@ -10,13 +10,12 @@ For the narrative story behind the architectural choices and operational lessons
 
 Built to expand beyond single-machine experiments and disposable cloud setups, evolving the foundations of [observability-hub](https://github.com/victoriacheng15/observability-hub) across distributed physical infrastructure:
 
-* **From Single-Node to Distributed Topology:** Scales the single-machine GitOps and Cilium foundations into a multi-node bare-metal environment, confronting real node failure domains and quorum management.
-* **Three-Tier Platform Lifecycle:** Strict boundary separation across infrastructure provisioning (OpenTofu), host OS baselines (Ansible), and declarative workload delivery (ArgoCD).
-* **Control Plane Isolation:** Centralized control plane with strict `NoSchedule` taints to preserve API stability.
-* **Kernel Datapath & In-Cluster Routing:** Cilium eBPF in isolated VXLAN overlay mode, avoiding host routing table modifications or physical LAN disruption.
-* **Decoupled Ingress Gateway:** Standalone Nginx reverse proxy and Pi-hole DNS sinkhole operating outside Kubernetes to ensure uninterrupted service routing.
-* **Zero-Drift GitOps:** ArgoCD as the authoritative reconciler for all cluster services, observability daemons, and security tools.
-* **Resilience Under Constraints:** Asymmetric physical hardware (Mini PC + Laptop) with external Raspberry Pi Corosync quorum (`corosync-qnetd`) to prevent split-brain states.
+* **Distributed Topology:** Scales across multi-node hardware using an external Raspberry Pi tiebreaker to manage quorum and node failure domains.
+* **Three-Tier Platform Lifecycle:** Enforces strict boundaries across infrastructure (OpenTofu), host OS baselines (Ansible), and workloads (ArgoCD).
+* **Control Plane Isolation:** Isolates the control plane with `NoSchedule` taints to protect API stability.
+* **Host Network Management:** Manages machine IP addressing via DHCP and static reservations across physical hosts and VMs.
+* **Kernel Datapath & Routing:** Routes pod traffic via Cilium eBPF and VXLAN overlay without disrupting the home LAN.
+* **Zero-Drift GitOps:** Reconciles all cluster services and platform tools automatically using ArgoCD.
 
 ---
 
@@ -34,7 +33,7 @@ Built to expand beyond single-machine experiments and disposable cloud setups, e
 | :---: | :--- | :--- | :--- | :--- | :--- |
 | <img src="./assets/logos/proxmox.svg" alt="Proxmox" width="32"> | Mini PC | `pve-01` | x86_64 | 32 GB | Proxmox host (`k8s-cp-01`, `k8s-telemetry-01`) |
 | <img src="./assets/logos/proxmox.svg" alt="Proxmox" width="32"> | Laptop | `pve-02` | x86_64 | 8 GB | Proxmox host (`k8s-app-01` worker) |
-| <img src="./assets/logos/raspberrypi.svg" alt="Raspberry Pi" width="32"> | Raspberry Pi 3B | `rpi-01` | ARM64 | 1 GB | Corosync QDevice quorum tiebreaker (`corosync-qnetd`) |
+| <img src="./assets/logos/raspberrypi.svg" alt="Raspberry Pi" width="32"> | Raspberry Pi 3B | `rpi-01` | ARM64 | 1 GB | Corosync QDevice, Chrony NTP, and SSH Jumpbox |
 
 ---
 

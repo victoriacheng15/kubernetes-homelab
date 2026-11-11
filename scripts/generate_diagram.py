@@ -87,22 +87,22 @@ with Diagram(
     outformat="png",
 ):
     with Cluster("Layer 1: Infrastructure Provisioning", graph_attr=cluster_outer_attr):
-        tofu = Terraform("OpenTofu\n(IaaS)")
+        tofu = Terraform("OpenTofu\n(IaC)")
         pve = Server("Proxmox VE\n(VMs & LXCs)")
-        tofu >> Edge(color="#2563eb", penwidth="1.8", label="provisions") >> pve
+        tofu >> Edge(color="#2563eb", penwidth="1.8") >> pve
 
         with Cluster("Layer 2: Configuration Management", graph_attr=cluster_inner_attr):
             ansible = Ansible("Ansible\n(Automation)")
             os_tune = Server("OS Baseline\n(sysctl, swap, pkgs)")
-            ansible >> Edge(color="#10b981", penwidth="1.8", label="configures") >> os_tune
+            ansible >> Edge(color="#10b981", penwidth="1.8") >> os_tune
 
             with Cluster("Layer 3: Declarative GitOps", graph_attr=cluster_outer_attr):
                 argo = Argocd("ArgoCD")
                 k8s = Pod("Kubernetes")
-                argo >> Edge(color="#f97316", penwidth="1.8", label="reconciles") >> k8s
+                argo >> Edge(color="#f97316", penwidth="1.8") >> k8s
 
-        pve >> Edge(color="#64748b", penwidth="2.2", style="bold", label="Hardware Ready") >> ansible
-        os_tune >> Edge(color="#64748b", penwidth="2.2", style="bold", label="Nodes Ready") >> argo
+        pve >> Edge(color="#64748b", penwidth="2.2", style="bold") >> ansible
+        os_tune >> Edge(color="#64748b", penwidth="2.2", style="bold") >> argo
 
 # ==============================================================================
 # Diagram 2: Physical Topology & Quorum
@@ -111,7 +111,7 @@ with Diagram(
 with Diagram(
     "Physical Topology",
     show=False,
-    direction="LR",
+    direction="TB",
     curvestyle="ortho",
     graph_attr=base_graph_attr,
     node_attr=common_node_attr,
@@ -127,13 +127,7 @@ with Diagram(
         with Cluster("rpi-01", graph_attr=cluster_inner_attr):
             qdevice = Server("Corosync QDevice")
             ntp = Server("Chrony NTP (UTC)")
-
-        # Corosync Quorum & Witness Links
-        pve01 - Edge(color="#2563eb", penwidth="2.5", label="Corosync") - pve02
-        qdevice >> Edge(color="#10b981", style="dashed", penwidth="2.0") >> pve01
-        qdevice >> Edge(color="#10b981", style="dashed", penwidth="2.0") >> pve02
-        ntp >> Edge(color="#f97316", style="dashed", penwidth="2.0") >> pve01
-        ntp >> Edge(color="#f97316", style="dashed", penwidth="2.0") >> pve02
+            jumpbox = Server("SSH Jumpbox")
 
 # ==============================================================================
 # Diagram 3: Kubernetes Homelab Architecture

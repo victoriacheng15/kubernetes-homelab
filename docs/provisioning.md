@@ -153,13 +153,14 @@ Deploy virtual machines and utility containers:
 
 ### Standalone Utility Containers
 
-Alongside the Kubernetes virtual machines, OpenTofu provisions unprivileged Debian LXC utility containers:
+The absolute minimum required to run this homelab is the 3 virtual machines and Ansible. The rest of the utility containers are not needed to operate the platform:
 
 | Container | ID | Host | IP Mode | Operational Purpose |
 | :--- | :--- | :--- | :--- | :--- |
 | **`ansible`** | `CT 300` | `pve-01` | DHCP | Dedicated automation controller node running playbooks across the fleet |
-| **`pihole`** | `CT 301` | `pve-01` | Static / DHCP | Local DNS sinkhole and wildcard domain resolver (`*.homelab.local`) |
-| **`nginx`** | `CT 302` | `pve-01` | DHCP | Local reverse proxy and SSL gateway for cluster dashboards |
+| **`pihole`** | `CT 301` | `pve-01` | DHCP | DNS sinkhole and wildcard domain resolver (`*.homelab.local`) |
+| **`nginx`** | `CT 302` | `pve-01` | DHCP | Reverse proxy and SSL gateway for cluster dashboards |
+| **`storage`** | `CT 303` | `pve-02` | DHCP | Samba (SMB) network storage and notes backup target |
 
 ---
 
