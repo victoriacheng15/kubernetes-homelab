@@ -2,11 +2,11 @@
 # ==============================================================================
 # Playbook: 06-setup-storage.yml
 # Purpose: Configures Samba (SMB) file sharing on sandbox-storage LXC container.
-# Target: Runs against the [storage] inventory group.
+# Target: Runs against the [nas] inventory group.
 # ==============================================================================
 
 - name: Setup Local Network File Storage (Samba)
-  hosts: storage
+  hosts: nas
   become: true
   environment:
     PATH: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -16,11 +16,12 @@
     share_path: "/data/shares/homelab"
 
   tasks:
-    - name: Install Samba packages
+    - name: Install Samba and rsync
       apt:
         name:
           - samba
           - samba-common-bin
+          - rsync
         state: present
         update_cache: true
 
