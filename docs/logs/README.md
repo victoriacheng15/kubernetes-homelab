@@ -10,3 +10,4 @@ Chronological record of physical hardware provisioning, cluster state transition
 | 004 | [Layer 2 DNS Sinkhole & Gateway Automation](./2026-11-02-layer-2-dns-and-gateway-automation.md) | `pihole`, `nginx`, `ansible/` | Pi-hole v6 FTL decoupling, Linux RFC 6762 mDNS multicast trap |
 | 005 | [Wave 0 GitOps Deployment & Kernel Observability](./2026-11-03-wave-0-gitops-and-kernel-observability.md) | `gitops/`, `cert-manager`, `falco`, `kyverno` | Falco modular eBPF plugins, Kyverno privileged policy exemption, ArgoCD CRD dry-run blocker |
 | 006 | [Infrastructure Drills & CNI Automation](./2026-11-05-infrastructure-drills-and-cni-automation.md) | `infra/`, `ansible/`, `bootstrap/` | Machine-ID DHCP collision, NodeRestriction admission, Cilium Helm boolean bug |
+| 007 | [Remote Tailscale Subnet Routing](./2026-11-24-remote-tailscale-subnet-routing.md) | `rpi-01`, `infra/` | Tailscale exit node vs. RFC 1918 subnet route isolation |
