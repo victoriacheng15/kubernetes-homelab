@@ -370,7 +370,48 @@ kubectl --kubeconfig=$HOME/.kube/k8s get pods -A
 
 ---
 
-## Utility Containers Provisioning
+## Pipeline Orchestration
+
+For automated provisioning and disaster recovery drills ("The Phoenix Rebuild"), the platform provides modular pipelines that can be executed independently or chained together:
+
+### 1. Cluster Bootstrap Pipeline (`bootstrap.yml`)
+
+Provisions the complete Kubernetes cluster and platform services without external dependencies:
+
+```bash
+ansible-playbook -i inventory.ini bootstrap.yml
+```
+
+This pipeline executes the three core cluster playbooks:
+
+- `playbooks/01-setup-vms.yml`: Base OS hardening, swap disabling, kernel networking modules, and sysctl rules.
+- `playbooks/02-bootstrap-cluster.yml`: k3s control plane initialization, token capture, and worker node joining.
+- `playbooks/03-setup-cluster-services.yml`: In-cluster Cilium eBPF CNI, ArgoCD GitOps engine, and Chaos Mesh platform.
+
+### 2. Utility Services Pipeline (`utilities.yml`) (Optional)
+
+Provisions auxiliary network services for local DNS resolution and reverse proxy dashboard ingress:
+
+```bash
+ansible-playbook -i inventory.ini utilities.yml
+```
+
+This pipeline executes the utility container playbooks:
+
+- `playbooks/04-setup-pihole.yml`: Local DNS sinkhole and wildcard domain routing (`*.homelab.local`).
+- `playbooks/05-setup-nginx.yml`: Ingress gateway virtual host routing for all 7 platform dashboards.
+
+### 3. Full Platform Pipeline (`site.yml`)
+
+Chains both pipelines in strict sequence for full-fleet, zero-touch disaster recovery:
+
+```bash
+ansible-playbook -i inventory.ini site.yml
+```
+
+---
+
+## Utility Containers Provisioning (Optional)
 
 Standalone Debian LXC utility containers on `pve-01` host external network services to provide local wildcard DNS resolution and unified reverse proxy routing:
 
@@ -435,44 +476,3 @@ Access all homelab dashboards in your browser via the managed reverse proxy rout
   ```bash
   dig pihole.homelab.local +short
   ```
-
----
-
-## Pipeline Orchestration
-
-For automated provisioning and disaster recovery drills ("The Phoenix Rebuild"), the platform provides modular pipelines that can be executed independently or chained together:
-
-### 1. Cluster Bootstrap Pipeline (`bootstrap.yml`)
-
-Provisions the complete Kubernetes cluster and platform services without external dependencies:
-
-```bash
-ansible-playbook -i inventory.ini bootstrap.yml
-```
-
-This pipeline executes the three core cluster playbooks:
-
-- `playbooks/01-setup-vms.yml`: Base OS hardening, swap disabling, kernel networking modules, and sysctl rules.
-- `playbooks/02-bootstrap-cluster.yml`: k3s control plane initialization, token capture, and worker node joining.
-- `playbooks/03-setup-cluster-services.yml`: In-cluster Cilium eBPF CNI, ArgoCD GitOps engine, and Chaos Mesh platform.
-
-### 2. Utility Services Pipeline (`utilities.yml`)
-
-Provisions auxiliary network services for local DNS resolution and reverse proxy dashboard ingress:
-
-```bash
-ansible-playbook -i inventory.ini utilities.yml
-```
-
-This pipeline executes the utility container playbooks:
-
-- `playbooks/04-setup-pihole.yml`: Local DNS sinkhole and wildcard domain routing (`*.homelab.local`).
-- `playbooks/05-setup-nginx.yml`: Ingress gateway virtual host routing for all 7 platform dashboards.
-
-### 3. Full Platform Pipeline (`site.yml`)
-
-Chains both pipelines in strict sequence for full-fleet, zero-touch disaster recovery:
-
-```bash
-ansible-playbook -i inventory.ini site.yml
-```

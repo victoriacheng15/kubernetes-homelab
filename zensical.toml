@@ -11,7 +11,7 @@ nav = [
     { "The Journey" = "journey.md" },
     { "Provisioning" = "provisioning.md" },
     { "ADRs" = "adr/README.md" },
-    { "Engineering Log" = "engineering-log.md" },
+    { "Engineering Logs" = "logs/README.md" },
 ]
 
 extra_css = [
