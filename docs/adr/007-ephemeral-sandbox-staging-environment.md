@@ -14,7 +14,7 @@ A dedicated sandbox VM provides an ephemeral testbed to validate provisioning an
 
 ## Decision Outcome
 
-We will introduce a declarative, dynamic sandbox staging mechanism directly within the OpenTofu and Ansible codebases using the following architecture:
+This decision introduces a declarative, dynamic sandbox staging mechanism directly within the OpenTofu and Ansible codebases using the following architecture:
 
 1. **Dynamic Sandbox Variable Map (`var.sandbox_vms`):**
    - Define a dynamic map in `infra/01-variables.tf` defaulting to an empty map (`{}`).
