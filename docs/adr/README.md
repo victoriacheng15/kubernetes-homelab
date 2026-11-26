@@ -12,3 +12,5 @@ This directory contains the architectural decisions made during the evolution of
 | 006 | [Orchestrated Cluster Bootstrap via Ansible Scripts](./006-orchestrated-cluster-bootstrap-via-ansible-scripts.md) | Hybrid cluster bootstrap pipeline wrapping standalone shell scripts inside sequential Ansible plays with dual-key SSH isolation. | Accepted |
 | 007 | [Ephemeral Sandbox Staging Environment](./007-ephemeral-sandbox-staging-environment.md) | Declarative 900-series sandbox VM provisioning via OpenTofu and Ansible for safe script and playbook testing. | Accepted |
 | 008 | [Deterministic Static IP Allocation](./008-deterministic-static-ip-allocation.md) | Structured static IP offset schema separating hypervisors, cluster VMs, utility LXCs, and ephemeral sandboxes. | Proposed |
+| 009 | [Gateway TLS Termination](./009-gateway-tls-termination.md) | Wildcard TLS termination (`*.homelab.local`) on the external Nginx reverse proxy LXC with HTTP-to-HTTPS redirects. | Proposed |
+| 010 | [GitOps Sync-Wave Tiering](./010-gitops-sync-wave-tiering.md) | Three-wave ArgoCD App-of-Apps ordering across infrastructure, telemetry, and apps. | Proposed |
