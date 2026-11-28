@@ -21,7 +21,8 @@ This decision migrates all permanent and ephemeral infrastructure from dynamic D
 | :--- | :--- | :--- |
 | `<SUBNET>.10` - `<SUBNET>.29` | Cluster Virtual Machines | Control plane and worker VMs |
 | `<SUBNET>.30` - `<SUBNET>.49` | Utility Containers (LXC) | `ansible`, `pihole`, `nginx`, `storage` |
-| `<SUBNET>.50` - `<SUBNET>.59` | Physical Hardware | `pve-01`, `pve-02`, `rpi-01` |
+| `<SUBNET>.50` - `<SUBNET>.59` | Proxmox Hypervisors | `pve-01`, `pve-02` (plus reserved host slots) |
+| `<SUBNET>.60` - `<SUBNET>.69` | Non-PVE Hardware | `rpi-01` and external infrastructure devices |
 | `<SUBNET>.80` - `<SUBNET>.89` | Ephemeral Sandbox Containers | Disposable `800`-series LXCs |
 | `<SUBNET>.90` - `<SUBNET>.99` | Ephemeral Sandbox VMs | Disposable `900`-series VMs |
 
